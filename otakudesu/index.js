@@ -55,14 +55,16 @@ app.get('/anime/schedule', async (req, res) => {
         $('.kglist321').each((i, el) => {
             const day = $(el).find('h2').text().trim();
             const animes = [];
-            $(el).next('ul').find('li').each((j, li) => {
+            $(el).find('ul li').each((j, li) => {
                 const a = $(li).find('a');
-                animes.push({
-                    title: a.text().trim(),
-                    slug: a.attr('href').split('/').filter(Boolean).pop()
-                });
+                if (a.length) {
+                    animes.push({
+                        title: a.text().trim(),
+                        slug: a.attr('href').split('/').filter(Boolean).pop()
+                    });
+                }
             });
-            schedule.push({ day, animes });
+            if (day) schedule.push({ day, animes });
         });
         res.json({ status: true, data: schedule });
     } catch (e) {
@@ -192,13 +194,16 @@ app.get('/anime/genre', async (req, res) => {
 app.get('/anime/genre/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
-        const page = req.query.page || 1;
-        const $ = await getCheerio(`${baseUrl}/genres/${slug}/page/${page}/`);
+        const page = req.query.page;
+        const url = page && page > 1 ? `${baseUrl}/genres/${slug}/page/${page}/` : `${baseUrl}/genres/${slug}/`;
+        const $ = await getCheerio(url);
         const anime = [];
         $('.col-anime-con').each((i, el) => {
+            const a = $(el).find('.col-anime-title a');
+            if (!a.attr('href')) return;
             anime.push({
-                title: $(el).find('.col-anime-title a').text().trim(),
-                slug: $(el).find('.col-anime-title a').attr('href').split('/').filter(Boolean).pop(),
+                title: a.text().trim(),
+                slug: a.attr('href').split('/').filter(Boolean).pop(),
                 image: $(el).find('.col-anime-cover img').attr('src'),
                 episode: $(el).find('.col-anime-eps').text().trim(),
                 score: $(el).find('.col-anime-rating').text().trim()
@@ -262,15 +267,30 @@ app.get('/anime/search/:keyword', async (req, res) => {
         const $ = await getCheerio(`${baseUrl}/?s=${keyword}&post_type=anime`);
         const anime = [];
         $('.chivsrc li').each((i, el) => {
+            const a = $(el).find('h2 a');
+            if (!a.attr('href')) return;
             anime.push({
-                title: $(el).find('h2 a').text().trim(),
-                slug: $(el).find('h2 a').attr('href').split('/').filter(Boolean).pop(),
+                title: a.text().trim(),
+                slug: a.attr('href').split('/').filter(Boolean).pop(),
                 image: $(el).find('img').attr('src'),
                 status: $(el).find('.set:contains("Status")').text().split(':').pop().trim(),
                 rating: $(el).find('.set:contains("Rating")').text().split(':').pop().trim(),
                 genres: $(el).find('.set:contains("Genres") a').map((j, a) => $(a).text().trim()).get()
             });
         });
+        /* Fallback if chivsrc is not used */
+        if (anime.length === 0) {
+            $('.venz .detpost').each((i, el) => {
+                const a = $(el).find('a');
+                if (!a.attr('href')) return;
+                anime.push({
+                    title: $(el).find('h2').text().trim(),
+                    slug: a.attr('href').split('/').filter(Boolean).pop(),
+                    image: $(el).find('img').attr('src'),
+                    episode: $(el).find('.epz').text().trim()
+                });
+            });
+        }
         res.json({ status: true, data: anime });
     } catch (e) {
         res.status(500).json({ status: false, message: e.message });
@@ -283,18 +303,34 @@ app.get('/anime/batch/:slug', async (req, res) => {
         const { slug } = req.params;
         const $ = await getCheerio(`${baseUrl}/batch/${slug}/`);
         const downloads = [];
-        $('.download ul li').each((i, el) => {
-            const quality = $(el).find('strong').text().trim();
-            const links = [];
-            $(el).find('a').each((j, a) => {
-                links.push({
-                    name: $(a).text().trim(),
-                    link: $(a).attr('href')
+
+        /* Find all containers that look like download areas */
+        const containers = $('.batchlink, .download, .list-download');
+
+        containers.each((idx, container) => {
+            $(container).find('ul li').each((i, el) => {
+                const quality = $(el).find('strong').text().trim();
+                const links = [];
+                $(el).find('a').each((j, a) => {
+                    const link = $(a).attr('href');
+                    if (link) {
+                        links.push({
+                            name: $(a).text().trim(),
+                            link
+                        });
+                    }
                 });
+                if (quality) downloads.push({ quality, links });
             });
-            downloads.push({ quality, links });
         });
-        res.json({ status: true, data: { title: $('.venz h1').text().trim() || $('.download h4').text().trim(), downloads } });
+
+        res.json({
+            status: true,
+            data: {
+                title: $('.venz h1').text().trim() || $('.batchlink h4').text().trim() || $('.download h4').text().trim() || $('h1').first().text().trim(),
+                downloads
+            }
+        });
     } catch (e) {
         res.status(500).json({ status: false, message: e.message });
     }
@@ -342,6 +378,18 @@ app.get('/anime/unlimited', async (req, res) => {
                 slug: $(el).attr('href').split('/').filter(Boolean).pop()
             });
         });
+        /* If specific class fails, try all links in container */
+        if (anime.length === 0) {
+            $('.daftarkartun a').each((i, el) => {
+                const href = $(el).attr('href');
+                if (href && href.includes('/anime/')) {
+                    anime.push({
+                        title: $(el).text().trim(),
+                        slug: href.split('/').filter(Boolean).pop()
+                    });
+                }
+            });
+        }
         res.json({ status: true, data: anime });
     } catch (e) {
         res.status(500).json({ status: false, message: e.message });
