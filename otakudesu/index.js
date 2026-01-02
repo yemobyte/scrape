@@ -52,10 +52,10 @@ app.get('/anime/schedule', async (req, res) => {
     try {
         const $ = await getCheerio(`${baseUrl}/jadwal-rilis/`);
         const schedule = [];
-        $('.kgit').each((i, el) => {
+        $('.kglist321').each((i, el) => {
             const day = $(el).find('h2').text().trim();
             const animes = [];
-            $(el).find('ul li').each((j, li) => {
+            $(el).next('ul').find('li').each((j, li) => {
                 const a = $(li).find('a');
                 animes.push({
                     title: a.text().trim(),
@@ -104,7 +104,7 @@ app.get('/anime/anime/:slug', async (req, res) => {
                 const ep = {
                     title: a.text().trim(),
                     slug: a.attr('href').split('/').filter(Boolean).pop(),
-                    date: $(el).find('.zeeone').text().trim()
+                    date: $(el).find('.zeebr').text().trim()
                 };
                 if (genre.includes('complete')) {
                     if (!info.complete_episodes) info.complete_episodes = [];
@@ -121,7 +121,7 @@ app.get('/anime/anime/:slug', async (req, res) => {
                 ...info,
                 image: $('.fotoanime img').attr('src'),
                 synopsis: $('.sinopc').text().trim(),
-                episodes
+                episodes: episodes.length > 0 ? episodes : (info.complete_episodes || [])
             }
         });
     } catch (e) {
@@ -195,13 +195,13 @@ app.get('/anime/genre/:slug', async (req, res) => {
         const page = req.query.page || 1;
         const $ = await getCheerio(`${baseUrl}/genres/${slug}/page/${page}/`);
         const anime = [];
-        $('.venz .detpost').each((i, el) => {
+        $('.col-anime-con').each((i, el) => {
             anime.push({
-                title: $(el).find('h2').text().trim(),
-                slug: $(el).find('a').attr('href').split('/').filter(Boolean).pop(),
-                image: $(el).find('img').attr('src'),
-                episode: $(el).find('.epz').text().trim(),
-                score: $(el).find('.revz').text().trim()
+                title: $(el).find('.col-anime-title a').text().trim(),
+                slug: $(el).find('.col-anime-title a').attr('href').split('/').filter(Boolean).pop(),
+                image: $(el).find('.col-anime-cover img').attr('src'),
+                episode: $(el).find('.col-anime-eps').text().trim(),
+                score: $(el).find('.col-anime-rating').text().trim()
             });
         });
         res.json({ status: true, data: anime });
@@ -261,13 +261,14 @@ app.get('/anime/search/:keyword', async (req, res) => {
         const { keyword } = req.params;
         const $ = await getCheerio(`${baseUrl}/?s=${keyword}&post_type=anime`);
         const anime = [];
-        $('.venz .detpost').each((i, el) => {
+        $('.chivsrc li').each((i, el) => {
             anime.push({
-                title: $(el).find('h2').text().trim(),
-                slug: $(el).find('a').attr('href').split('/').filter(Boolean).pop(),
+                title: $(el).find('h2 a').text().trim(),
+                slug: $(el).find('h2 a').attr('href').split('/').filter(Boolean).pop(),
                 image: $(el).find('img').attr('src'),
-                status: $(el).find('.set').last().text().trim(),
-                genres: $(el).find('.set').first().text().replace('Genres : ', '').trim().split(', ')
+                status: $(el).find('.set:contains("Status")').text().split(':').pop().trim(),
+                rating: $(el).find('.set:contains("Rating")').text().split(':').pop().trim(),
+                genres: $(el).find('.set:contains("Genres") a').map((j, a) => $(a).text().trim()).get()
             });
         });
         res.json({ status: true, data: anime });
@@ -293,7 +294,7 @@ app.get('/anime/batch/:slug', async (req, res) => {
             });
             downloads.push({ quality, links });
         });
-        res.json({ status: true, data: { title: $('.venz h1').text().trim(), downloads } });
+        res.json({ status: true, data: { title: $('.venz h1').text().trim() || $('.download h4').text().trim(), downloads } });
     } catch (e) {
         res.status(500).json({ status: false, message: e.message });
     }
@@ -335,7 +336,7 @@ app.get('/anime/unlimited', async (req, res) => {
     try {
         const $ = await getCheerio(`${baseUrl}/anime-list/`);
         const anime = [];
-        $('#absl .jdl-manga a').each((i, el) => {
+        $('.daftarkartun a.hodebgst').each((i, el) => {
             anime.push({
                 title: $(el).text().trim(),
                 slug: $(el).attr('href').split('/').filter(Boolean).pop()
