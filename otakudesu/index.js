@@ -361,10 +361,33 @@ app.get('/anime/server/:serverId', async (req, res) => {
         const $ = cheerio.load(html);
         const url = $('iframe').attr('src');
 
-        res.json({ status: true, data: { url } });
+        res.json({ status: true, data: { url, quality: q } });
     } catch (e) {
         res.status(500).json({ status: false, message: e.message });
     }
+});
+
+/* Home API/Documentation */
+app.get('/', (req, res) => {
+    res.json({
+        status: true,
+        message: 'Otakudesu Unofficial API',
+        endpoints: {
+            home: '/anime/home',
+            schedule: '/anime/schedule',
+            urutan_anime: '/anime/unlimited',
+            complete_anime: '/anime/complete-anime',
+            ongoing_anime: '/anime/ongoing-anime',
+            genre_list: '/anime/genre',
+            genre_detail: '/anime/genre/:slug',
+            search: '/anime/search/:keyword',
+            anime_detail: '/anime/anime/:slug',
+            episode_detail: '/anime/episode/:slug',
+            batch_download: '/anime/batch/:slug',
+            stream_server: '/anime/server/:serverId',
+        },
+        author: 'Yemobyte'
+    });
 });
 
 /* All Anime */

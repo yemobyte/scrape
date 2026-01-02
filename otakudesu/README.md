@@ -1,32 +1,57 @@
-# Scraper Otakudesu
+# Otakudesu Unofficial API
 
-Scraper untuk mengambil data dari Otakudesu.
+A simple Express.js based scraper/API for Otakudesu.
 
-## Cara Setup
+## Installation
 
-1. Install dependensi:
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+node index.js
+```
 
-2. Jalankan server:
-   ```bash
-   node index.js
-   ```
+## Endpoints
 
-3. Server akan berjalan di `http://localhost:3000`.
+### 1. Home
+- **URL**: `/anime/home`
+- **Description**: Get latest anime updates.
 
-## Endpoint
+### 2. Search Anime (Cari Anime)
+- **URL**: `/anime/search/:keyword`
+- **Example**: `/anime/search/one%20piece`
+- **Description**: Search for anime by title.
 
-- `GET /anime/home` - Halaman Utama
-- `GET /anime/schedule` - Jadwal Rilis
-- `GET /anime/anime/:slug` - Detail Anime
-- `GET /anime/complete-anime` - Anime Tamat
-- `GET /anime/ongoing-anime` - Anime Ongoing
-- `GET /anime/genre` - Daftar Genre
-- `GET /anime/genre/:slug` - Anime per Genre
-- `GET /anime/episode/:slug` - Detail Episode
-- `GET /anime/search/:keyword` - Cari Anime
-- `GET /anime/batch/:slug` - Download Batch
-- `GET /anime/server/:serverId` - Stream URL
-- `GET /anime/unlimited` - Semua Anime
+### 3. Anime Detail
+- **URL**: `/anime/anime/:slug`
+- **Example**: `/anime/anime/one-piece-sub-indo/`
+- **Description**: Get detailed information and list of episodes.
+
+### 4. Episode Detail (Detail Episode)
+- **URL**: `/anime/episode/:slug`
+- **Example**: `/anime/episode/one-piece-episode-1065-sub-indo/`
+- **Description**: Get episode stream links (embeds) and download links.
+- **Returns**: List of servers (with `serverId`) and download links.
+
+### 5. Stream URL (Stream Server)
+- **URL**: `/anime/server/:serverId`
+- **Example**: `/anime/server/123456-0-360p`
+- **Description**: Get the actual embed URL for a specific server.
+- **Parameters**: `serverId` is obtained from the Episode Detail endpoint.
+- **Returns**: 
+  ```json
+  {
+    "status": true,
+    "data": {
+      "url": "https://desustream.info/...",
+      "quality": "360p"
+    }
+  }
+  ```
+
+### 6. Batch Download (Download Batch)
+- **URL**: `/anime/batch/:slug`
+- **Example**: `/anime/batch/one-piece-batch/`
+- **Description**: Get batch download links if available.
+
+## Notes
+- Endpoints rely on scraping HTML, so they might break if the site layout changes.
+- The `serverId` format is `id-index-quality`.
