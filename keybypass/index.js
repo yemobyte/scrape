@@ -38,21 +38,15 @@ app.post('/bypass', async (req, res) => {
         await page.goto(SITE_URL, { waitUntil: 'networkidle2' });
 
         /* Input URL */
-        await page.waitForSelector('input[placeholder*="Enter link"]');
-        await page.type('input[placeholder*="Enter link"]', url);
+        await page.waitForSelector('#url-input');
+        await page.type('#url-input', url);
 
-        /* Solve hCaptcha manually or via extension is needed here if it blocks */
-        /* Since this is a automated scrape, we trigger the bypass if possible */
-        /* Note: Site strictly requires hCaptcha token. This headless method 
-           will still prompt for captcha unless a solver is integrated. */
-
+        /* Submit */
         await page.click('#bypass-btn');
 
         /* Wait for result or captcha challenge */
-        /* This is a demonstration of how the scrape would look */
-
-        /* Success check: result-container might appear after bypass */
         try {
+            /* Success check: result-container might appear after bypass */
             await page.waitForSelector('.result-container', { timeout: 10000 });
             const result = await page.evaluate(() => {
                 const res = document.querySelector('.result-text');
@@ -63,11 +57,11 @@ app.post('/bypass', async (req, res) => {
                 return res.json({ status: true, data: { result } });
             }
         } catch (err) {
-            /* If timeout, likely blocked by hCaptcha */
+            /* If timeout, likely blocked by hCaptcha or invalid link */
             return res.status(403).json({
                 status: false,
-                message: 'hCaptcha challenge detected. Manual intervention or solver required.',
-                note: 'Sitekey: a32c1138-88bc-4f6a-b466-a622acba2376'
+                message: 'hCaptcha challenge detected or bypass failed. Manual intervention or solver required.',
+                sitekey: 'a32c1138-88bc-4f6a-b466-a622acba2376'
             });
         }
 
@@ -102,8 +96,9 @@ app.get('/', (req, res) => {
             },
             sitekey: '/sitekey'
         },
-        testing_urls: {
-            pastebin: 'https://pastebin.com/raw/u9mQfyz8'
+        testing_info: {
+            rentry: 'https://rentry.co/uidcvszz',
+            note: 'Rentry contains the sitekey and test URL info.'
         }
     });
 });
