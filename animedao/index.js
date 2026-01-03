@@ -24,11 +24,9 @@ async function getCheerio(url) {
     return cheerio.load(data);
 }
 
-/* Helper to parse anime list from .tip/card elements */
 function parseAnime($, selector) {
     const list = [];
     $(selector).each((i, el) => {
-        /* Title extraction handling for various layouts */
         const title = $(el).find('img').attr('alt') || $(el).attr('title') || $(el).find('h3').text() || $(el).text();
         const link = $(el).attr('href');
         const image = $(el).find('img').attr('src');
@@ -94,7 +92,6 @@ app.get('/animedao/movies', async (req, res) => {
         let movies = parseAnime($, '.tip');
 
         if (movies.length === 0) {
-            /* Fallback for different layout */
             movies = parseAnime($, 'article.anime');
         }
 
@@ -107,54 +104,39 @@ app.get('/animedao/movies', async (req, res) => {
     }
 });
 
-/* Schedule Endpoint */
+/* Schedule Endpoint - Logic Updated */
 app.get('/animedao/schedule', async (req, res) => {
     try {
         const url = `${BASE_URL}/schedule/`;
         const $ = await getCheerio(url);
 
         const schedule = [];
-        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-        let currentDay = '';
-        let currentAnimes = [];
 
-        /* Traverse main content to find Headers and Items sequentially */
-        const container = $('.entry-content, .post-body, article').first();
+        $('.bixbox.schedulepage').each((i, box) => {
+            const dayName = $(box).find('.releases h3 span').text().trim();
+            const animes = [];
 
-        if (container.length) {
-            container.children().each((i, el) => {
-                const tag = $(el).prop('tagName').toLowerCase();
-                const text = $(el).text().trim();
+            $(box).find('.listupd .bs').each((j, el) => {
+                const title = $(el).find('.tttx .tt').text().trim() || $(el).find('a').attr('title');
+                const link = $(el).find('.bsx a').attr('href');
+                const time = $(el).find('.epx').text().trim();
+                const image = $(el).find('img').attr('src');
 
-                const isDay = days.find(d => text.includes(d));
-
-                if ((tag.startsWith('h') || $(el).hasClass('day-name')) && isDay) {
-                    if (currentDay && currentAnimes.length) {
-                        schedule.push({ day: currentDay, animes: currentAnimes });
-                    }
-                    currentDay = isDay;
-                    currentAnimes = [];
-                } else if (currentDay) {
-                    $(el).find('a').each((j, a) => {
-                        const title = $(a).text().trim();
-                        const link = $(a).attr('href');
-                        const time = $(el).find('.time').text().trim() || $(a).prev('.time').text().trim();
-
-                        if (title && link) {
-                            currentAnimes.push({
-                                time: time || 'Unknown',
-                                title,
-                                slug: link.split('/').filter(Boolean).pop(),
-                                link
-                            });
-                        }
+                if (title && link) {
+                    animes.push({
+                        time,
+                        title,
+                        slug: link.split('/').filter(Boolean).pop(),
+                        link,
+                        image
                     });
                 }
             });
-            if (currentDay && currentAnimes.length) {
-                schedule.push({ day: currentDay, animes: currentAnimes });
+
+            if (dayName && animes.length > 0) {
+                schedule.push({ day: dayName, animes });
             }
-        }
+        });
 
         res.json({
             status: true,
@@ -205,7 +187,7 @@ app.get('/animedao/genre/:slug', async (req, res) => {
 
         res.json({
             status: true,
-            data: anime.length ? anime : parseAnime($, '.series') /* Fallback */
+            data: anime.length ? anime : parseAnime($, '.series')
         });
     } catch (e) {
         res.status(500).json({ status: false, message: e.message });
