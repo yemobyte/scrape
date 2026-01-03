@@ -24,39 +24,46 @@ async function getCheerio(url) {
     return cheerio.load(data);
 }
 
+/* Helper to parse anime list from .tip/card elements */
+function parseAnime($, selector) {
+    const list = [];
+    $(selector).each((i, el) => {
+        /* Title extraction handling for various layouts */
+        const title = $(el).find('img').attr('alt') || $(el).attr('title') || $(el).find('h3').text() || $(el).text();
+        const link = $(el).attr('href');
+        const image = $(el).find('img').attr('src');
+
+        let cleanTitle = title;
+        if (cleanTitle) {
+            cleanTitle = cleanTitle.replace('Watch ', '').replace(' Online Free', '').trim();
+        }
+
+        if (link) {
+            list.push({
+                title: cleanTitle,
+                slug: link.split('/').filter(Boolean).pop(),
+                image,
+                link
+            });
+        }
+    });
+    return list;
+}
+
 /* Home Endpoint */
 app.get('/animedao/home', async (req, res) => {
     try {
         const $ = await getCheerio(BASE_URL);
-        const latest = [];
+        const latest = parseAnime($, '.tip');
+        /* Popular Series usually in .series or sidebar */
         const popular = [];
-
-        /* Latest Release */
-        $('.tip').each((i, el) => {
-            const title = $(el).attr('title');
+        $('.series').each((i, el) => {
+            const title = $(el).find('.series-title').text().trim();
             const link = $(el).attr('href');
             const image = $(el).find('img').attr('src');
-
-            if (title && link) {
-                latest.push({
-                    title: title.replace('Watch ', '').replace(' Online Free', ''),
-                    slug: link.split('/').filter(Boolean).pop(),
-                    image,
-                    link
-                });
-            }
-        });
-
-        /* Popular (Assuming structure based on analysis: a.series) */
-        /* If .series not found, we might need to inspect popular section manually or skip */
-        $('a.series').each((i, el) => {
-            const title = $(el).find('.series-title').text() || $(el).attr('title') || $(el).text();
-            const link = $(el).attr('href');
-            const image = $(el).find('img').attr('src');
-
             if (link) {
                 popular.push({
-                    title: title.trim(),
+                    title,
                     slug: link.split('/').filter(Boolean).pop(),
                     image,
                     link
@@ -71,7 +78,135 @@ app.get('/animedao/home', async (req, res) => {
                 popular
             }
         });
+    } catch (e) {
+        res.status(500).json({ status: false, message: e.message });
+    }
+});
 
+/* Movies Endpoint */
+app.get('/animedao/movies', async (req, res) => {
+    try {
+        const { page = 1 } = req.query;
+        const url = `${BASE_URL}/series/?type=Movie&order=update&page=${page}`;
+        const $ = await getCheerio(url);
+
+        /* Movies use same structure as list usually */
+        let movies = parseAnime($, '.tip');
+
+        if (movies.length === 0) {
+            /* Fallback for different layout */
+            movies = parseAnime($, 'article.anime');
+        }
+
+        res.json({
+            status: true,
+            data: movies
+        });
+    } catch (e) {
+        res.status(500).json({ status: false, message: e.message });
+    }
+});
+
+/* Schedule Endpoint */
+app.get('/animedao/schedule', async (req, res) => {
+    try {
+        const url = `${BASE_URL}/schedule/`;
+        const $ = await getCheerio(url);
+
+        const schedule = [];
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        let currentDay = '';
+        let currentAnimes = [];
+
+        /* Traverse main content to find Headers and Items sequentially */
+        const container = $('.entry-content, .post-body, article').first();
+
+        if (container.length) {
+            container.children().each((i, el) => {
+                const tag = $(el).prop('tagName').toLowerCase();
+                const text = $(el).text().trim();
+
+                const isDay = days.find(d => text.includes(d));
+
+                if ((tag.startsWith('h') || $(el).hasClass('day-name')) && isDay) {
+                    if (currentDay && currentAnimes.length) {
+                        schedule.push({ day: currentDay, animes: currentAnimes });
+                    }
+                    currentDay = isDay;
+                    currentAnimes = [];
+                } else if (currentDay) {
+                    $(el).find('a').each((j, a) => {
+                        const title = $(a).text().trim();
+                        const link = $(a).attr('href');
+                        const time = $(el).find('.time').text().trim() || $(a).prev('.time').text().trim();
+
+                        if (title && link) {
+                            currentAnimes.push({
+                                time: time || 'Unknown',
+                                title,
+                                slug: link.split('/').filter(Boolean).pop(),
+                                link
+                            });
+                        }
+                    });
+                }
+            });
+            if (currentDay && currentAnimes.length) {
+                schedule.push({ day: currentDay, animes: currentAnimes });
+            }
+        }
+
+        res.json({
+            status: true,
+            data: schedule.length ? schedule : 'No schedule data found with current selector logic'
+        });
+    } catch (e) {
+        res.status(500).json({ status: false, message: e.message });
+    }
+});
+
+/* Genres Endpoint */
+app.get('/animedao/genres', async (req, res) => {
+    try {
+        const $ = await getCheerio(BASE_URL);
+        const genres = [];
+
+        $('a[href*="/genres/"]').each((i, el) => {
+            const name = $(el).text().trim();
+            const link = $(el).attr('href');
+            const exists = genres.find(g => g.link === link);
+            if (!exists && name) {
+                genres.push({
+                    name,
+                    slug: link.split('/').filter(Boolean).pop(),
+                    link
+                });
+            }
+        });
+
+        res.json({
+            status: true,
+            data: genres
+        });
+    } catch (e) {
+        res.status(500).json({ status: false, message: e.message });
+    }
+});
+
+/* Get Anime by Genre */
+app.get('/animedao/genre/:slug', async (req, res) => {
+    try {
+        const { slug } = req.params;
+        const page = req.query.page || 1;
+        const url = `${BASE_URL}/genres/${slug}/page/${page}`;
+        const $ = await getCheerio(url);
+
+        const anime = parseAnime($, '.tip');
+
+        res.json({
+            status: true,
+            data: anime.length ? anime : parseAnime($, '.series') /* Fallback */
+        });
     } catch (e) {
         res.status(500).json({ status: false, message: e.message });
     }
@@ -87,9 +222,7 @@ app.get('/animedao/anime/:slug', async (req, res) => {
         const title = $('h1').text().trim();
         const image = $('.series-image img').attr('src') || $('.content-more img').attr('src');
 
-        /* Synopsis Extraction - Complex logic due to structure */
         let synopsis = '';
-        /* Try finding "Description" header or similar */
         $('h2, h3, strong, b').each((i, el) => {
             if ($(el).text().includes('Description') || $(el).text().includes('Synopsis')) {
                 synopsis = $(el).parent().text().replace('Description', '').replace('Synopsis', '').trim();
@@ -99,14 +232,19 @@ app.get('/animedao/anime/:slug', async (req, res) => {
             synopsis = $('.series-description').text().trim() || $('.content-more').text().trim();
         }
 
-        /* Episodes */
         const episodes = [];
         $('.ep-item').each((i, el) => {
-            const link = $(el).attr('href');
-            const title = $(el).text().trim() || $(el).attr('title');
+            let link = $(el).attr('href');
+            let epTitle = $(el).text().trim() || $(el).attr('title');
+
+            if (!link) {
+                link = $(el).find('a').attr('href');
+                epTitle = $(el).find('a').text().trim();
+            }
+
             if (link) {
                 episodes.push({
-                    title: title,
+                    title: epTitle,
                     slug: link.split('/').filter(Boolean).pop(),
                     link
                 });
@@ -133,21 +271,17 @@ app.get('/animedao/anime/:slug', async (req, res) => {
 app.get('/animedao/episode/:slug', async (req, res) => {
     try {
         const { slug } = req.params;
-        /* Handle if slug includes 'series/' or not, usually episode slug is direct */
         const url = `${BASE_URL}/${slug}`;
         const $ = await getCheerio(url);
 
         const title = $('h1').text().trim();
-        const iframeSrc = $('iframe').attr('src');
-
-        /* Check if iframe is from known sources */
-        const stream_url = iframeSrc;
+        let iframeSrc = $('iframe').attr('src');
 
         res.json({
             status: true,
             data: {
                 title,
-                stream_url,
+                stream_url: iframeSrc,
                 original_url: url
             }
         });
@@ -157,31 +291,16 @@ app.get('/animedao/episode/:slug', async (req, res) => {
     }
 });
 
-/* Search Endpoint (Experimental) */
+/* Search Endpoint */
 app.get('/animedao/search', async (req, res) => {
     try {
         const { query } = req.query;
         if (!query) return res.status(400).json({ status: false, message: 'Query param required' });
 
-        /* Guessing search URL structure: /?s=query */
         const url = `${BASE_URL}/?s=${encodeURIComponent(query)}`;
         const $ = await getCheerio(url);
 
-        const results = [];
-        $('.tip').each((i, el) => {
-            const title = $(el).attr('title');
-            const link = $(el).attr('href');
-            const image = $(el).find('img').attr('src');
-
-            if (title && link) {
-                results.push({
-                    title: title.replace('Watch ', '').replace(' Online Free', ''),
-                    slug: link.split('/').filter(Boolean).pop(),
-                    image,
-                    link
-                });
-            }
-        });
+        const results = parseAnime($, '.tip');
 
         res.json({
             status: true,
@@ -200,6 +319,10 @@ app.get('/', (req, res) => {
         message: 'Animedao (9anime) Scraper API',
         endpoints: {
             home: '/animedao/home',
+            movies: '/animedao/movies',
+            schedule: '/animedao/schedule',
+            genres: '/animedao/genres',
+            genre_detail: '/animedao/genre/:slug',
             anime_detail: '/animedao/anime/:slug',
             episode_stream: '/animedao/episode/:slug',
             search: '/animedao/search?query=naruto'
