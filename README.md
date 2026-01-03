@@ -9,6 +9,7 @@ Kumpulan scraper untuk berbagai situs web. Repository ini dibuat untuk tujuan pe
 - [MediaFire](./mediafire/)
 - [SSWeb](./ssweb/)
 - [MEGA](./mega/)
+- [Animedao (9anime)](./animedao/)
 
 ## Request Scraper
 
