@@ -6,6 +6,7 @@ Kumpulan scraper untuk berbagai situs web. Repository ini dibuat untuk tujuan pe
 
 - [Otakudesu](./otakudesu/)
 - [SSSTik (TikTok)](./ssstik/)
+- [MediaFire](./mediafire/)
 
 ## Request Scraper
 
