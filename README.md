@@ -5,6 +5,7 @@ Kumpulan scraper untuk berbagai situs web. Repository ini dibuat untuk tujuan pe
 ## Daftar Scraper
 
 - [Otakudesu](./otakudesu/)
+- [SSSTik (TikTok)](./ssstik/)
 
 ## Request Scraper
 
