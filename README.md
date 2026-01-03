@@ -8,6 +8,7 @@ Kumpulan scraper untuk berbagai situs web. Repository ini dibuat untuk tujuan pe
 - [SSSTik (TikTok)](./ssstik/)
 - [MediaFire](./mediafire/)
 - [SSWeb](./ssweb/)
+- [MEGA](./mega/)
 
 ## Request Scraper
 
