@@ -17,6 +17,7 @@ const client = axios.create({
 });
 
 /* Helper to fetch screenshot */
+/* Helper to fetch screenshot */
 async function getScreenshot(url, device = 'desktop', format = 'png') {
     const payload = {
         url: url,
@@ -24,13 +25,23 @@ async function getScreenshot(url, device = 'desktop', format = 'png') {
         format: format
     };
 
-    const response = await client.post('https://yemobyte-sc.hf.space/api/screenshot', payload, {
+    /* 1. Request screenshot generation (returns JSON with URL) */
+    const response = await client.post('https://yemobyte-sc.hf.space/api/screenshot', payload);
+
+    if (!response.data || !response.data.status || !response.data.data || !response.data.data.url) {
+        throw new Error('Failed to generate screenshot: ' + JSON.stringify(response.data));
+    }
+
+    const imageUrl = response.data.data.url;
+
+    /* 2. Fetch the actual image */
+    const imageResponse = await axios.get(imageUrl, {
         responseType: 'arraybuffer'
     });
 
     return {
-        buffer: response.data,
-        contentType: response.headers['content-type']
+        buffer: imageResponse.data,
+        contentType: imageResponse.headers['content-type']
     };
 }
 
