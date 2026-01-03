@@ -118,7 +118,8 @@ app.get('/', (req, res) => {
     res.json({
         status: true,
         message: 'MediaFire Scraper Ready',
-        endpoint: '/mediafire/download?url=YOUR_MEDIAFIRE_URL'
+        endpoint: '/mediafire/download?url=YOUR_MEDIAFIRE_URL',
+        author: 'Yemobyte'
     });
 });
 
