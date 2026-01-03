@@ -10,6 +10,7 @@ Kumpulan scraper untuk berbagai situs web. Repository ini dibuat untuk tujuan pe
 - [SSWeb](./ssweb/)
 - [MEGA](./mega/)
 - [Animedao (9anime)](./animedao/)
+- [Anichin](./anichin/)
 
 ## Request Scraper
 
