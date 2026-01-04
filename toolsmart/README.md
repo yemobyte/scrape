@@ -1,91 +1,65 @@
-# Toolsmart All-in-One Social Media Scraper
+# Toolsmart YouTube Scraper
 
-Profesional Scraper API yang mencakup seluruh fitur Social Media Tools dari [Toolsmart AI](https://www.toolsmart.ai).
-
-Project ini dibangun menggunakan Node.js dan menyediakan endpoint untuk mengunduh konten dari berbagai platform sosial media populer.
+Profesional Scraper API untuk **Toolsmart AI** (Khusus YouTube Features).
 
 ## Fitur Utama
 
-- **YouTube Video Downloader**: Mendapatkan link download video YouTube dalam berbagai resolusi (HD/4K).
-- **YouTube to MP3**: Mengonversi/mendapatkan audio MP3 dari video YouTube.
-- **YouTube Thumbnail**: Mengunduh thumbnail video YouTube (kualitas max).
-- **Instagram Downloader**: Mengunduh Foto, Video, Reels, dan IGTV.
-- **Facebook Video Downloader**: Mendapatkan video dari Facebook (SD & HD).
-- **Pinterest Video Downloader**: Mengunduh video dari Pinterest.
+- **YouTube Video Downloader**: Mendapatkan link download video YouTube (MP4).
+- **YouTube to MP3**: Mengonversi/mendapatkan audio MP3.
+- **YouTube Thumbnail**: Mengunduh thumbnail kualitas tinggi.
 
 ## Prasyarat
 
-- Node.js (v14 ke atas)
-- Koneksi Internet Stabil
+- Node.js (v14+)
+- **yt-dlp** (Wajib terinstall di sistem / VPS)
 
 ## Instalasi
 
-1. Clone repository ini atau copy folder `toolsmart`.
-2. Install dependencies:
+1. Install dependencies:
    ```bash
    npm install
    ```
 
-## Menjalankan Server
-
-```bash
-node index.js
-```
-Server akan berjalan di port `3000`.
+2. Jalankan Server:
+   ```bash
+   node index.js
+   ```
+   Server berjalan di port `3000`.
 
 ## Dokumentasi API
 
 ### 1. YouTube Video
-Mengambil link video MP4 dari YouTube.
+Mengambil link video MP4.
 
 - **Endpoint**: `/toolsmart/youtube/video`
-- **Parameter**: `url` (Link YouTube)
-- **Contoh**: `http://localhost:3000/toolsmart/youtube/video?url=https://youtu.be/xxx`
+- **Parameter**: `url`
+- **Contoh**: `/toolsmart/youtube/video?url=https://youtu.be/xxx`
 
 ### 2. YouTube to MP3
-Mengambil link audio/MP3 dari YouTube.
+Mengambil link audio/MP3.
 
 - **Endpoint**: `/toolsmart/youtube/mp3`
-- **Parameter**: `url` (Link YouTube)
-- **Contoh**: `http://localhost:3000/toolsmart/youtube/mp3?url=https://youtu.be/xxx`
+- **Parameter**: `url`
 
 ### 3. YouTube Thumbnail
-Mengambil gambar thumbnail dari YouTube.
+Mengambil gambar thumbnail.
 
 - **Endpoint**: `/toolsmart/youtube/thumbnail`
-- **Parameter**: `url` (Link YouTube)
+- **Parameter**: `url`
 
-### 4. Instagram
-Mengambil media dari post Instagram (Reels/Foto/Video).
-
-- **Endpoint**: `/toolsmart/instagram`
-- **Parameter**: `url` (Link Instagram)
-
-### 5. Facebook
-Mengambil video dari Facebook (Public).
-
-- **Endpoint**: `/toolsmart/facebook`
-- **Parameter**: `url` (Link Facebook Watch/Video)
-
-### 6. Pinterest
-Mengambil data video dari Pinterest.
-
-- **Endpoint**: `/toolsmart/pinterest`
-- **Parameter**: `url` (Link Pinterest, support `pin.it`)
-
-## Struktur Response (Contoh)
+## Struktur Response
 
 ```json
 {
   "status": true,
   "data": {
-    "title": "Judul Konten",
-    "thumbnail": "https://example.com/image.jpg",
+    "title": "Judul Video",
+    "thumbnail": "...",
     "downloads": [
       {
-        "quality": "1080p",
+        "quality": "720p",
         "format": "mp4",
-        "url": "https://googlevideo.com/..."
+        "url": "..."
       }
     ]
   }
@@ -93,4 +67,4 @@ Mengambil data video dari Pinterest.
 ```
 
 ## Lisensi
-MIT License. Dibuat sebagai bagian dari koleksi Scraper.
+MIT License.

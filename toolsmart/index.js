@@ -35,12 +35,7 @@ app.get('/', (req, res) => {
         endpoints: {
             youtube_video: '/toolsmart/youtube/video?url=',
             youtube_mp3: '/toolsmart/youtube/mp3?url=',
-            youtube_thumbnail: '/toolsmart/youtube/thumbnail?url=',
-            facebook: '/toolsmart/facebook?url=',
-            instagram: '/toolsmart/instagram?url=',
-            pinterest: '/toolsmart/pinterest?url=',
-            tiktok: '/toolsmart/tiktok?url=',
-            twitter: '/toolsmart/twitter?url='
+            youtube_thumbnail: '/toolsmart/youtube/thumbnail?url='
         }
     });
 });
@@ -129,128 +124,6 @@ app.get('/toolsmart/youtube/thumbnail', async (req, res) => {
         });
     } catch (e) {
         res.status(500).json({ status: false, message: 'Failed to fetch thumbnail' });
-    }
-});
-
-/* 4. Instagram Downloader */
-app.get('/toolsmart/instagram', async (req, res) => {
-    try {
-        const { url } = req.query;
-        if (!url) return res.status(400).json({ status: false, message: 'URL required' });
-
-        const info = await runYtDlp(url);
-
-        const media = [];
-        if (info.url) media.push(info.url);
-        if (info.entries) {
-            info.entries.forEach(e => {
-                if (e.url) media.push(e.url);
-            });
-        }
-
-        res.json({
-            status: true,
-            data: {
-                title: info.title || 'Instagram Post',
-                media
-            }
-        });
-    } catch (e) {
-        res.status(500).json({ status: false, message: 'Failed to fetch Instagram content (Private/Login Required)' });
-    }
-});
-
-/* 5. Facebook Downloader */
-app.get('/toolsmart/facebook', async (req, res) => {
-    try {
-        const { url } = req.query;
-        if (!url) return res.status(400).json({ status: false, message: 'URL required' });
-
-        const info = await runYtDlp(url);
-        const downloads = (info.formats || [])
-            .map(f => ({
-                quality: f.format_note || f.resolution,
-                url: f.url
-            }));
-
-        res.json({
-            status: true,
-            data: {
-                title: info.title,
-                downloads
-            }
-        });
-    } catch (e) {
-        res.status(500).json({ status: false, message: 'Failed to fetch Facebook video' });
-    }
-});
-
-/* 6. Pinterest Downloader */
-app.get('/toolsmart/pinterest', async (req, res) => {
-    try {
-        const { url } = req.query;
-        if (!url) return res.status(400).json({ status: false, message: 'URL required' });
-
-        const info = await runYtDlp(url);
-
-        res.json({
-            status: true,
-            data: {
-                title: info.title,
-                url: info.url
-            }
-        });
-    } catch (e) {
-        res.status(500).json({ status: false, message: 'Failed to fetch Pinterest video' });
-    }
-});
-
-/* 7. TikTok Downloader */
-app.get('/toolsmart/tiktok', async (req, res) => {
-    try {
-        const { url } = req.query;
-        if (!url) return res.status(400).json({ status: false, message: 'URL required' });
-
-        const info = await runYtDlp(url);
-
-        res.json({
-            status: true,
-            data: {
-                title: info.title,
-                author: info.uploader,
-                video_url: info.url,
-                audio_url: (info.formats || []).find(f => f.vcodec === 'none')?.url
-            }
-        });
-    } catch (e) {
-        res.status(500).json({ status: false, message: 'Failed to fetch TikTok video' });
-    }
-});
-
-/* 8. Twitter/X Downloader */
-app.get('/toolsmart/twitter', async (req, res) => {
-    try {
-        const { url } = req.query;
-        if (!url) return res.status(400).json({ status: false, message: 'URL required' });
-
-        const info = await runYtDlp(url);
-
-        const downloads = (info.formats || [])
-            .filter(f => f.url && f.ext === 'mp4')
-            .map(f => ({
-                quality: f.format_note,
-                url: f.url
-            }));
-
-        res.json({
-            status: true,
-            data: {
-                title: info.title,
-                downloads: downloads.length ? downloads : [{ url: info.url }]
-            }
-        });
-    } catch (e) {
-        res.status(500).json({ status: false, message: 'Failed to fetch Twitter content' });
     }
 });
 
