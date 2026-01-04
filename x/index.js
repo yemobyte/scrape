@@ -173,6 +173,7 @@ async function scrapeX(url) {
             },
             posted_at: tweetData.posted_at,
             date: tweetData.date,
+            media_count: allMedia.length,
             media: allMedia
         };
 
