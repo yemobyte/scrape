@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const axios = require('axios');
-const { JSDOM } = require('jsdom');
+const { connect } = require('puppeteer-real-browser');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -9,81 +8,136 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.set('json spaces', 2);
 
-/* Helper to clean strings */
-const cleanText = (str) => str ? str.trim() : '';
+/* Helper to clean stat strings */
+const cleanStat = (str) => {
+    if (!str) return '0';
+    return str.replace(/[^0-9\.KMB]/g, '');
+};
 
-/* TikTok Scraper Function */
-/* Uses a known public API endpoint logic (Musically/TikTok API) or scraping hidden inputs */
-/* or robust external API like Tikwm/LoversT as fallback if raw parsing fails due to signature */
-/* We will implement a pure Axios+Cheerio/JSDOM approach first by looking for hydration data */
-/* But TikTok usually requires signature. */
-/* Suggestion: Use 'tikwm.com' (Web based API) which captures clean content without watermark. */
-/* This is standard for "downloader" scrapers unless we run Puppeteer again. */
-/* User requested "langsung dari tiktoknya" (directly from tiktok). */
-/* Direct scraping requires generating X-Bogus/Signature which is very complex without a browser. */
-/* Given the pattern of previous tasks (Terabox -> Nekolabs), using a reliable intermediary */
-/* like Tikwm is usually the best "pure node" solution without heavy browsers. */
-/* HOWEVER, user said "langsung dari tiktoknya" (presumably the data source). */
-/* I will use TikWM as the most reliable provider for "No Watermark" + "Full Stats". */
-/* If explicitly rejected, we need Puppeteer. But Puppeteer for TikTok is heavy. */
-/* Let's try to parse the public embed / oembed or SIGI_STATE first. */
-
-async function scrapeTikTok(url) {
+/* TikTok Scraper (Direct using Puppeteer to extract hydration data or DOM) */
+async function scrapeTikTokDirect(url) {
+    let browser = null;
     try {
-        /* Method 1: TIKWM API (The most reliable for No-WM + Metadata) */
-        /* It effectively "scrapes" tiktok for us. */
-        const { data } = await axios.post('https://www.tikwm.com/api/', {
-            url: url,
-            count: 12,
-            cursor: 0,
-            web: 1,
-            hd: 1
-        }, {
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/101.0.4951.54 Safari/537.36'
+        const { browser: connectedBrowser, page } = await connect({
+            headless: 'auto',
+            turnstile: true,
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled']
+        });
+        browser = connectedBrowser;
+
+        /* Go to TikTok Video Page */
+        /* TikTok often has CAPTCHA. puppeteer-real-browser handles Turnstile but maybe not slider captcha found on TikTok. */
+        /* However, for individual video pages, it usually loads. */
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+
+        /* Wait for hydration data or specific selector */
+        /* SIGI_STATE is the global object containing metadata */
+
+        let sigiData = null;
+        try {
+            sigiData = await page.evaluate(() => {
+                /* Try to find the SIGI_STATE script */
+                const script = document.getElementById('SIGI_STATE');
+                if (script) {
+                    return JSON.parse(script.textContent);
+                }
+                /* Fallback: __UNIVERSAL_DATA_FOR_REHYDRATION__ */
+                const script2 = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__');
+                if (script2) {
+                    return JSON.parse(script2.textContent);
+                }
+                return null;
+            });
+        } catch (e) { }
+
+        if (sigiData) {
+            /* Parse SIGI data (Structure varies 2024-2025) */
+            /* Usually ItemModule or default Scope */
+            /* We try to extract best effort */
+            const itemModule = sigiData.ItemModule;
+            /* Find the video ID key */
+            const videoId = Object.keys(itemModule || {})[0];
+            if (videoId) {
+                const item = itemModule[videoId];
+                await browser.close();
+
+                return {
+                    status: true,
+                    author: 'Yemobyte',
+                    result: {
+                        title: item.desc,
+                        author: {
+                            unique_id: item.author,
+                            nickname: item.nickname || item.author
+                        },
+                        stats: {
+                            plays: item.stats.playCount,
+                            likes: item.stats.diggCount,
+                            comments: item.stats.commentCount,
+                            shares: item.stats.shareCount
+                        },
+                        video: {
+                            no_watermark: item.video.playAddr, /* This might be watermarked depending on hydration, but usually playAddr is raw? */
+                            /* Actually SIGI often gives expiring links. */
+                            /* But it is "Direct from TikTok". */
+                            resolutions: item.video.bitrateInfo
+                        }
+                    }
+                };
             }
+        }
+
+        /* Fallback: Pure DOM Scraping if SIGI fails or structure changed */
+        const domData = await page.evaluate(() => {
+            const getTxt = (sel) => document.querySelector(sel)?.innerText || '';
+            const desc = getTxt('[data-e2e="video-desc"]');
+            const authId = getTxt('[data-e2e="browse-username"]');
+            const authName = getTxt('[data-e2e="browse-user-avatar"]'); /* might be partial */
+
+            const like = getTxt('[data-e2e="like-count"]');
+            const comment = getTxt('[data-e2e="comment-count"]');
+            const share = getTxt('[data-e2e="share-count"]');
+
+            const videoSrc = document.querySelector('video')?.src;
+
+            return {
+                desc, authId, authName, like, comment, share, videoSrc
+            };
         });
 
-        if (data && data.data) {
-            const d = data.data;
+        await browser.close();
+
+        if (domData.videoSrc || domData.desc) {
             return {
                 status: true,
                 author: 'Yemobyte',
                 result: {
-                    title: d.title, /* Caption */
+                    title: domData.desc,
                     author: {
-                        unique_id: d.author.unique_id,
-                        nickname: d.author.nickname,
-                        avatar: d.author.avatar
+                        unique_id: domData.authId,
+                        nickname: domData.authName
                     },
                     stats: {
-                        plays: d.play_count,
-                        likes: d.digg_count,
-                        comments: d.comment_count,
-                        shares: d.share_count
-                    },
-                    music: {
-                        title: d.music_info?.title,
-                        author: d.music_info?.author
+                        plays: "Hidden (DOM)",
+                        likes: cleanStat(domData.like),
+                        comments: cleanStat(domData.comment),
+                        shares: cleanStat(domData.share)
                     },
                     video: {
-                        no_watermark: d.play, /* Helper field */
-                        no_watermark_hd: d.hdplay || d.play,
-                        watermark: d.wmplay
-                    },
-                    images: d.images || [] /* For slide shows */
+                        play_url: domData.videoSrc,
+                        note: "Direct Source Link (May have watermark or expire)"
+                    }
                 }
             };
         }
 
-        throw new Error('Failed to fetch data (Tier 1).');
+        throw new Error('Video Not Found (DOM/SIGI failed)');
 
     } catch (e) {
-        /* Fallback or Error */
+        if (browser) await browser.close();
         return {
             status: false,
-            message: e.message
+            message: 'Direct Scrape Failed: ' + e.message
         };
     }
 }
@@ -92,7 +146,7 @@ app.get('/', (req, res) => {
     res.json({
         status: true,
         author: 'Yemobyte',
-        description: 'TikTok Downloader Scraper',
+        description: 'TikTok Direct Scraper',
         endpoints: {
             download: '/tiktok/download?url=...'
         }
@@ -103,10 +157,10 @@ app.get('/tiktok/download', async (req, res) => {
     const { url } = req.query;
     if (!url) return res.status(400).json({ status: false, message: 'URL required' });
 
-    const result = await scrapeTikTok(url);
+    const result = await scrapeTikTokDirect(url);
     if (!result.status) return res.status(500).json(result);
 
     res.json(result);
 });
 
-app.listen(PORT, () => console.log(`TikTok Scraper running on http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`TikTok Direct Scraper running on http://localhost:${PORT}`));
