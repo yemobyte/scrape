@@ -41,6 +41,8 @@ async function scrapeX(url) {
                 path: c.path || '/'
             }));
             await page.setCookie(...formattedCookies);
+        } else {
+            console.warn("WARNING: No 'cookies.json' found or empty. X.com scraping will likely fail (Redirection to Login).");
         }
 
         await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
