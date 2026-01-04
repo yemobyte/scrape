@@ -26,18 +26,18 @@ async function scrapeX(url) {
             const resUrl = response.url();
             /* Filter for video files (mp4, m3u8) */
             if (resUrl.includes('.mp4') || resUrl.includes('.m3u8') || resUrl.includes('video.twimg.com')) {
-                // Exclude m3u8 playlists if we want only direct mp4? 
-                // X sends M3U8 for HLS and MP4 for legacy/direct.
-                // The user's log showed both. We keep both but maybe deduplicate or clean?
-                // Also exclude 'map' files or segments if noisy?
+                /* Exclude m3u8 playlists if we want only direct mp4? */
+                /* X sends M3U8 for HLS and MP4 for legacy/direct. */
+                /* The user's log showed both. We keep both but maybe deduplicate or clean? */
+                /* Also exclude 'map' files or segments if noisy? */
 
                 if (!resUrl.includes('blob:') && !resUrl.includes('.m4s') && !resUrl.includes('map')) {
                     videoUrls.push(resUrl);
                 }
-                // Actually the user's log showed a working .mp4:
-                // .../cI3woNUR9wmMRQvj.mp4
-                // And .m4s segments.
-                // We should prioritize MP4 if available.
+                /* Actually the user's log showed a working .mp4: */
+                /* .../cI3woNUR9wmMRQvj.mp4 */
+                /* And .m4s segments. */
+                /* We should prioritize MP4 if available. */
             }
         });
 
@@ -48,7 +48,7 @@ async function scrapeX(url) {
         try {
             await page.waitForSelector(tweetSelector, { timeout: 30000 });
         } catch (e) {
-            // console.log("Tweet selector not immediately found, waiting...");
+            /* console.log("Tweet selector not immediately found, waiting..."); */
             await new Promise(r => setTimeout(r, 5000));
         }
 
@@ -59,56 +59,56 @@ async function scrapeX(url) {
             const getText = (selector) => tweet.querySelector(selector)?.innerText || '';
             const getAttr = (selector, attr) => tweet.querySelector(selector)?.getAttribute(attr) || '';
 
-            // Text Extraction - Improved
-            // Try data-testid="tweetText" directly, or look for spans/divs with lang attribute
+            /* Text Extraction - Improved */
+            /* Try data-testid="tweetText" directly, or look for spans/divs with lang attribute */
             let text = '';
             const textNode = tweet.querySelector('[data-testid="tweetText"]');
             if (textNode) {
-                // Collect text from children to avoid hidden elements confusion, currently innerText is best suited
+                /* Collect text from children to avoid hidden elements confusion, currently innerText is best suited */
                 text = textNode.innerText || textNode.textContent;
             } else {
-                // Fallback: looking for main text block via class analysis is hard, try aria-label of the tweet?
-                // The tweet article often has "Tweet text" in aria? No.
-                // Fallback to page title or meta description if main text missing (last resort)
-                // But for now, just keep empty if finding fails.
+                /* Fallback: looking for main text block via class analysis is hard, try aria-label of the tweet? */
+                /* The tweet article often has "Tweet text" in aria? No. */
+                /* Fallback to page title or meta description if main text missing (last resort) */
+                /* But for now, just keep empty if finding fails. */
             }
 
-            // Author
+            /* Author */
             const userNames = getText('[data-testid="User-Name"]').split('\n');
             const authorName = userNames[0] || '';
             const authorUsername = userNames[1] || '';
 
-            // Time
+            /* Time */
             const timeEl = tweet.querySelector('time');
             const postedAt = timeEl ? timeEl.getAttribute('datetime') : '';
             const dateDisplay = timeEl ? timeEl.innerText : '';
 
-            // Stats
+            /* Stats */
             const replyCount = getAttr('[data-testid="reply"]', 'aria-label') || getText('[data-testid="reply"]');
             const retweetCount = getAttr('[data-testid="retweet"]', 'aria-label') || getText('[data-testid="retweet"]');
             const likeCount = getAttr('[data-testid="like"]', 'aria-label') || getText('[data-testid="like"]');
 
-            // Views - Improved
-            // Views are often in a link href ending with /analytics
-            // OR sometimes just a group with specific aria-label "Views"
+            /* Views - Improved */
+            /* Views are often in a link href ending with /analytics */
+            /* OR sometimes just a group with specific aria-label "Views" */
             let viewCount = '';
             const analyticsLink = tweet.querySelector('a[href*="/analytics"]');
             if (analyticsLink) {
-                // Try getting text node directly involved with numbers
-                // Often structure is: <div><span><span>1.2M</span></span> <span...>Views</span></div>
-                // We want the number.
+                /* Try getting text node directly involved with numbers */
+                /* Often structure is: <div><span><span>1.2M</span></span> <span...>Views</span></div> */
+                /* We want the number. */
                 const rawText = analyticsLink.innerText;
-                // rawText might be "1M Views". 
+                /* rawText might be "1M Views". */
                 viewCount = rawText.replace(/User Analytics|Views/gi, '').trim();
             } else {
-                // Try looking for stat with specific svg path (too complex) or aria-label containing "View"
+                /* Try looking for stat with specific svg path (too complex) or aria-label containing "View" */
                 const viewGroup = Array.from(tweet.querySelectorAll('[role="group"] [aria-label*="View"]')).pop();
                 if (viewGroup) {
                     viewCount = viewGroup.getAttribute('aria-label').replace(/Views?/i, '').trim();
                 }
             }
 
-            // Cleanup stats (remove "Replies", "Likes" text if present in aria-label)
+            /* Cleanup stats (remove "Replies", "Likes" text if present in aria-label) */
             const cleanStat = (str) => str.replace(/[^0-9KnM.]/g, '').trim();
 
             return {
