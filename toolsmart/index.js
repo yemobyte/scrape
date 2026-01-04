@@ -12,9 +12,6 @@ app.set('json spaces', 2);
 /* Helper: Execute yt-dlp */
 const runYtDlp = (url) => {
     return new Promise((resolve, reject) => {
-        // -J: Dump JSON
-        // --no-playlist: Single video only
-        // --quiet: No logging
         const command = `yt-dlp -J --no-playlist --quiet "${url}"`;
         exec(command, { maxBuffer: 1024 * 1024 * 50 }, (error, stdout, stderr) => {
             if (error) {
@@ -41,7 +38,9 @@ app.get('/', (req, res) => {
             youtube_thumbnail: '/toolsmart/youtube/thumbnail?url=',
             facebook: '/toolsmart/facebook?url=',
             instagram: '/toolsmart/instagram?url=',
-            pinterest: '/toolsmart/pinterest?url='
+            pinterest: '/toolsmart/pinterest?url=',
+            tiktok: '/toolsmart/tiktok?url=',
+            twitter: '/toolsmart/twitter?url='
         }
     });
 });
@@ -54,9 +53,8 @@ app.get('/toolsmart/youtube/video', async (req, res) => {
 
         const info = await runYtDlp(url);
 
-        /* Filter formats */
         const downloads = (info.formats || [])
-            .filter(f => f.ext === 'mp4' && f.acodec !== 'none' && f.vcodec !== 'none') // Video+Audio
+            .filter(f => f.ext === 'mp4' && f.acodec !== 'none' && f.vcodec !== 'none')
             .map(f => ({
                 quality: f.format_note || f.resolution || 'unknown',
                 format: f.ext,
@@ -64,7 +62,6 @@ app.get('/toolsmart/youtube/video', async (req, res) => {
                 url: f.url
             }));
 
-        /* If no direct video+audio, fallback to best video */
         if (downloads.length === 0) {
             const best = (info.formats || []).filter(f => f.ext === 'mp4').pop();
             if (best) downloads.push({ quality: 'best', format: 'mp4', url: best.url });
@@ -93,7 +90,6 @@ app.get('/toolsmart/youtube/mp3', async (req, res) => {
 
         const info = await runYtDlp(url);
 
-        /* Filter Audio */
         const downloads = (info.formats || [])
             .filter(f => f.vcodec === 'none' && f.acodec !== 'none')
             .map(f => ({
@@ -160,7 +156,6 @@ app.get('/toolsmart/instagram', async (req, res) => {
             }
         });
     } catch (e) {
-        /* yt-dlp might require cookies for IG, but let's see */
         res.status(500).json({ status: false, message: 'Failed to fetch Instagram content (Private/Login Required)' });
     }
 });
@@ -207,6 +202,55 @@ app.get('/toolsmart/pinterest', async (req, res) => {
         });
     } catch (e) {
         res.status(500).json({ status: false, message: 'Failed to fetch Pinterest video' });
+    }
+});
+
+/* 7. TikTok Downloader */
+app.get('/toolsmart/tiktok', async (req, res) => {
+    try {
+        const { url } = req.query;
+        if (!url) return res.status(400).json({ status: false, message: 'URL required' });
+
+        const info = await runYtDlp(url);
+
+        res.json({
+            status: true,
+            data: {
+                title: info.title,
+                author: info.uploader,
+                video_url: info.url,
+                audio_url: (info.formats || []).find(f => f.vcodec === 'none')?.url
+            }
+        });
+    } catch (e) {
+        res.status(500).json({ status: false, message: 'Failed to fetch TikTok video' });
+    }
+});
+
+/* 8. Twitter/X Downloader */
+app.get('/toolsmart/twitter', async (req, res) => {
+    try {
+        const { url } = req.query;
+        if (!url) return res.status(400).json({ status: false, message: 'URL required' });
+
+        const info = await runYtDlp(url);
+
+        const downloads = (info.formats || [])
+            .filter(f => f.url && f.ext === 'mp4')
+            .map(f => ({
+                quality: f.format_note,
+                url: f.url
+            }));
+
+        res.json({
+            status: true,
+            data: {
+                title: info.title,
+                downloads: downloads.length ? downloads : [{ url: info.url }]
+            }
+        });
+    } catch (e) {
+        res.status(500).json({ status: false, message: 'Failed to fetch Twitter content' });
     }
 });
 
