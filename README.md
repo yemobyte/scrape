@@ -1,28 +1,42 @@
-# Scrape API Collection
+# Scrape API
 
-A collection of Node.js scrapers and APIs by **Yemo**.
+A professional collection of high-performance Node.js scrapers and APIs for various platforms.
+Maintained by **Yemobyte**.
 
-## Available Scrapers
+## 🚀 Active Scrapers
 
-### 1. Sfile Scraper (`/sfile`)
-A dedicated tool for searching and downloading files from **Sfile.mobi**.
-- **Search**: Find files easily.
-- **Download**: Extract download links.
-- **Stream**: Proxy download support.
+| Platform | Endpoint/Description | Status |
+| :--- | :--- | :--- |
+| **XNXX** | `/xnxx` - Adult video streaming & search | ✅ Active |
+| **X (Twitter)** | `/x` - Video & media downloader | ✅ Active |
+| **Terabox** | `/terabox` - File & video downloader | ✅ Active |
+| **Otakudesu** | `/otakudesu` - Anime streaming | ✅ Active |
+| **Anichin** | `/anichin` - Donghua streaming | ✅ Active |
+| **AnimeDao** | `/animedao` - Anime streaming | ✅ Active |
+| **SSSTik** | `/ssstik` - TikTok without watermark | ✅ Active |
+| **Mega** | `/mega` - File metadata & download | ✅ Active |
+| **Mediafire** | `/mediafire` - File download links | ✅ Active |
+| **SSWeb** | `/ssweb` - General social media tools | ✅ Active |
 
-### 2. X (Twitter) Scraper (`/x`)
-Advanced X.com scraper using session cookies.
-- **Download**: Extract media and text from posts.
+## 🛠️ Installation & Usage
 
+Each scraper is a standalone Node.js module. To use one:
 
-## Installation
-Navigate to the specific scraper directory and install dependencies:
+1. Navigate to the scraper directory:
+   ```bash
+   cd xnxx
+   ```
 
-```bash
-cd sfile
-npm install
-node index.js
-```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-## License
-MIT
+3. Run the server:
+   ```bash
+   node index.js
+   ```
+
+## 📝 License
+This project is open-source and available under the standard license.
+Created with ❤️ by **Yemobyte**.
