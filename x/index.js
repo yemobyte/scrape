@@ -1,8 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const { connect } = require('puppeteer-real-browser');
-const fs = require('fs');
-const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,97 +8,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.set('json spaces', 2);
 
-/* Load cookies if available */
-let cookies = [];
-try {
-    const cookiePath = path.join(__dirname, 'cookies.json');
-    if (fs.existsSync(cookiePath)) {
-        cookies = JSON.parse(fs.readFileSync(cookiePath, 'utf8'));
-    }
-} catch (e) {
-    console.log('Error loading cookies:', e.message);
-}
-
+/* X Scraper - No Cookies Mode */
 async function scrapeX(url) {
-    let browser = null;
-    try {
-        const { browser: connectedBrowser, page } = await connect({
-            headless: 'auto',
-            turnstile: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
-        browser = connectedBrowser;
-
-        /* Set Cookies */
-        if (cookies.length > 0) {
-            /* Format cookies for Puppeteer */
-            const formattedCookies = cookies.map(c => ({
-                name: c.name,
-                value: c.value,
-                domain: c.domain || '.x.com',
-                path: c.path || '/'
-            }));
-            await page.setCookie(...formattedCookies);
-        } else {
-            console.warn("WARNING: No 'cookies.json' found or empty. X.com scraping will likely fail (Redirection to Login).");
-        }
-
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-
-        /* Wait for video or content */
-        /* X structure: 'video' tag usually presents */
-        /* Or look for media container */
-
-        await page.waitForSelector('article', { timeout: 30000 }).catch(() => { });
-
-        /* Extract Media */
-        const result = await page.evaluate(() => {
-            const media = [];
-            // Check for videos
-            document.querySelectorAll('video').forEach(v => {
-                let src = v.src;
-                if (!src && v.querySelector('source')) src = v.querySelector('source').src;
-                // Blob URLs need special handling (xhr fetch) but scrape via MP4 src if available?
-                // X often uses blob:https://... for HLS.
-                // WE might need to intercept network requests for m3u8 or mp4
-                media.push({ type: 'video', url: src, blob: src.startsWith('blob:') });
-            });
-
-            // Check for images
-            document.querySelectorAll('img[src*="media"]').forEach(img => {
-                media.push({ type: 'image', url: img.src });
-            });
-
-            // Text
-            const text = document.querySelector('[data-testid="tweetText"]')?.innerText || '';
-
-            return { text, media };
-        });
-
-        /* If blob url, we need to find M3U8 from network request? */
-        /* Since we are in Puppeteer, we could have listened to responses. */
-        /* But simple page evaluate return might miss the actual mp4 link. */
-        /* Let's be smart: If blob, looking for video variant requires intercepting `VideoVariants` or `Track` requests. */
-
-        /* For this v1 antigravity scrape, we return what DOM has. */
-        /* If it's a blob, we can't download it directly without the session logic for segments. */
-        /* OR we use an external tool helper if this fails. */
-
-        /* Wait, user asked to scrape "postingan x tersebut". */
-        /* If I can capture the .mp4 URL request, that's best. */
-
-        await browser.close();
-        return result;
-
-    } catch (e) {
-        if (browser) await browser.close();
-        throw new Error('Scrape Error: ' + e.message);
-    }
-}
-
-/* We need NETWORK INTERCEPTION for X videos (m3u8/mp4) */
-/* Updating scrapeX to listen to network */
-async function scrapeXRobust(url) {
     let browser = null;
     let videoUrls = [];
 
@@ -112,33 +21,34 @@ async function scrapeXRobust(url) {
         });
         browser = connectedBrowser;
 
-        if (cookies.length > 0) {
-            const formattedCookies = cookies.map(c => ({
-                name: c.name,
-                value: c.value,
-                domain: c.domain || '.x.com',
-                path: c.path || '/'
-            }));
-            await page.setCookie(...formattedCookies);
-        }
-
-        /* Listen for Mp4/M3u8 */
+        /* Network Interception for Media */
         page.on('response', response => {
-            const url = response.url();
-            if (url.includes('.mp4') || url.includes('.m3u8') || url.includes('video.twimg.com')) {
-                if (!url.includes('blob:')) videoUrls.push(url);
+            const resUrl = response.url();
+            /* Filter for video files (mp4, m3u8) */
+            if (resUrl.includes('.mp4') || resUrl.includes('.m3u8') || resUrl.includes('video.twimg.com')) {
+                // Exclude m3u8 playlists if we want only direct mp4? 
+                // X sends M3U8 for HLS and MP4 for legacy/direct.
+                // The user's log showed both. We keep both but maybe deduplicate or clean?
+                // Also exclude 'map' files or segments if noisy?
+
+                if (!resUrl.includes('blob:') && !resUrl.includes('.m4s') && !resUrl.includes('map')) {
+                    videoUrls.push(resUrl);
+                }
+                // Actually the user's log showed a working .mp4:
+                // .../cI3woNUR9wmMRQvj.mp4
+                // And .m4s segments.
+                // We should prioritize MP4 if available.
             }
         });
 
         await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-        // await new Promise(r => setTimeout(r, 5000)); // wait for media load
 
-        /* Wait for tweet to load */
+        /* Wait for tweet to load using robust selector strategy */
         const tweetSelector = 'article[data-testid="tweet"]';
         try {
             await page.waitForSelector(tweetSelector, { timeout: 30000 });
         } catch (e) {
-            console.log("Tweet selector not immediately found, waiting...");
+            // console.log("Tweet selector not immediately found, waiting...");
             await new Promise(r => setTimeout(r, 5000));
         }
 
@@ -146,40 +56,37 @@ async function scrapeXRobust(url) {
             const tweet = document.querySelector('article[data-testid="tweet"]');
             if (!tweet) return null;
 
-            // Helper to get text safely
             const getText = (selector) => tweet.querySelector(selector)?.innerText || '';
-            const getAria = (selector) => tweet.querySelector(selector)?.getAttribute('aria-label') || '';
+            const getAttr = (selector, attr) => tweet.querySelector(selector)?.getAttribute(attr) || '';
 
-            // Text
-            const text = getText('[data-testid="tweetText"]');
+            // Text Extraction (Fix empty text issue)
+            // Sometimes text is in spans inside div[data-testid="tweetText"]
+            const textEl = tweet.querySelector('[data-testid="tweetText"]');
+            let text = '';
+            if (textEl) {
+                // Clone and remove invisible/hidden elements if any? usually innerText is fine.
+                text = textEl.innerText;
+            }
 
-            // Author Info
+            // Author
             const userNames = getText('[data-testid="User-Name"]').split('\n');
             const authorName = userNames[0] || '';
-            const authorUsername = userNames[1] || ''; // usually @handle
+            const authorUsername = userNames[1] || '';
 
             // Time
             const timeEl = tweet.querySelector('time');
             const postedAt = timeEl ? timeEl.getAttribute('datetime') : '';
             const dateDisplay = timeEl ? timeEl.innerText : '';
 
-            // Metrics (Reliable from Aria Label usually, e.g. "100 likes")
-            // Or inner text which might be "1K"
-            const replyCount = getText('[data-testid="reply"]');
-            const retweetCount = getText('[data-testid="retweet"]');
-            const likeCount = getText('[data-testid="like"]');
-            const viewCount = getText('[href*="/analytics"]'); // Views often linked to analytics or just a stat span
+            // Stats
+            const replyCount = getAttr('[data-testid="reply"]', 'aria-label') || getText('[data-testid="reply"]');
+            const retweetCount = getAttr('[data-testid="retweet"]', 'aria-label') || getText('[data-testid="retweet"]');
+            const likeCount = getAttr('[data-testid="like"]', 'aria-label') || getText('[data-testid="like"]');
+            const viewLink = tweet.querySelector('a[href*="/analytics"]');
+            const viewCount = viewLink ? (viewLink.getAttribute('aria-label') || viewLink.innerText) : '';
 
-            // Media
-            const media = [];
-            tweet.querySelectorAll('video').forEach(v => {
-                let src = v.src;
-                if (!src && v.querySelector('source')) src = v.querySelector('source').src;
-                media.push({ type: 'video', url: src, blob: src.startsWith('blob:') });
-            });
-            tweet.querySelectorAll('img[src*="media"]').forEach(img => {
-                media.push({ type: 'image', url: img.src });
-            });
+            // Cleanup stats (remove "Replies", "Likes" text if present in aria-label)
+            const cleanStat = (str) => str.replace(/[^0-9KnM.]/g, '').trim();
 
             return {
                 text,
@@ -187,11 +94,10 @@ async function scrapeXRobust(url) {
                 author_username: authorUsername,
                 posted_at: postedAt,
                 date: dateDisplay,
-                replies: replyCount,
-                retweets: retweetCount,
-                likes: likeCount,
-                views: viewCount,
-                media_dom: media // Fallback if network interception fails
+                replies: cleanStat(replyCount),
+                retweets: cleanStat(retweetCount),
+                likes: cleanStat(likeCount),
+                views: cleanStat(viewCount)
             };
         });
 
@@ -201,8 +107,10 @@ async function scrapeXRobust(url) {
             return { error: 'Tweet not found or failed to load' };
         }
 
-        /* Merge network discovered videos if available, else use DOM */
-        const finalMedia = videoUrls.length > 0 ? videoUrls : tweetData.media_dom.map(m => m.url);
+        /* Deduplicate and Clean Video URLs */
+        const uniqueMedia = [...new Set(videoUrls)];
+        /* Filter to prefer MP4 over M3U8 if possible, or return best quality? */
+        /* For now return all unique valid video links found during load */
 
         return {
             text: tweetData.text,
@@ -218,7 +126,7 @@ async function scrapeXRobust(url) {
             },
             posted_at: tweetData.posted_at,
             date: tweetData.date,
-            media: finalMedia
+            media: uniqueMedia
         };
 
     } catch (e) {
@@ -226,7 +134,6 @@ async function scrapeXRobust(url) {
         throw new Error('Scrape Error: ' + e.message);
     }
 }
-
 
 app.get('/', (req, res) => {
     res.json({
@@ -244,7 +151,7 @@ app.get('/x/download', async (req, res) => {
         const { url } = req.query;
         if (!url) return res.status(400).json({ status: false, message: 'URL required' });
 
-        const data = await scrapeXRobust(url);
+        const data = await scrapeX(url);
 
         res.json({
             status: true,
