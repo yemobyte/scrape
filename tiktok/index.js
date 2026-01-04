@@ -167,6 +167,17 @@ async function scrapeTikTokDirect(url) {
             };
         }
 
+        /* Parse Author more aggressively if missing */
+        if (!finalResult.author.unique_id) {
+            /* Try regex on canonical link */
+            const canonical = await page.evaluate(() => document.querySelector('link[rel="canonical"]')?.href);
+            if (canonical) {
+                const match = canonical.match(/@([^/]+)/);
+                if (match) finalResult.author.unique_id = match[1];
+            }
+        }
+        if (!finalResult.author.nickname) finalResult.author.nickname = finalResult.author.unique_id;
+
         await browser.close();
 
         /* Replace Video URL with Network Intercepted Direct URL (Best Quality/Real) */
@@ -180,6 +191,10 @@ async function scrapeTikTokDirect(url) {
         finalResult.stats.likes = fmt(finalResult.stats.likes);
         finalResult.stats.comments = fmt(finalResult.stats.comments);
         finalResult.stats.shares = fmt(finalResult.stats.shares);
+
+        /* Add Proxy Stream URL because TikTok links are strict (403 Forbidden without Referer) */
+        /* encoding the url to pass to stream endpoint */
+        finalResult.video.proxy_url = `http://localhost:${PORT}/tiktok/stream?video=${encodeURIComponent(finalResult.video.play_url)}`;
 
         return {
             status: true,
@@ -202,9 +217,32 @@ app.get('/', (req, res) => {
         author: 'Yemobyte',
         description: 'TikTok Direct Scraper',
         endpoints: {
-            download: '/tiktok/download?url=...'
+            download: '/tiktok/download?url=...',
+            stream: '/tiktok/stream?video=...'
         }
     });
+});
+
+app.get('/tiktok/stream', async (req, res) => {
+    const { video } = req.query;
+    if (!video) return res.status(400).send('Video URL required');
+
+    try {
+        const response = await axios({
+            method: 'GET',
+            url: video,
+            responseType: 'stream',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36',
+                'Referer': 'https://www.tiktok.com/'
+            }
+        });
+
+        res.setHeader('Content-Type', response.headers['content-type']);
+        response.data.pipe(res);
+    } catch (e) {
+        res.status(500).send('Stream Failed: ' + e.message);
+    }
 });
 
 app.get('/tiktok/download', async (req, res) => {
