@@ -1,3 +1,13 @@
+---
+title: Turnstile Solver
+emoji: 🛡️
+colorFrom: blue
+colorTo: cyan
+sdk: docker
+pinned: false
+app_port: 7860
+---
+
 # Turnstile Solver API
 
 A powerful Cloudflare Turnstile solver using **Puppeteer Real Browser**.
@@ -19,8 +29,12 @@ Created by **Yemobyte**.
 {
   "status": true,
   "author": "Yemobyte",
-  "token": "0.xxxxxxx...",
-  "userAgent": "Mozilla/5.0..."
+  "data": {
+    "token": "0.xxxxxxx...",
+    "cf_clearance": "xxxx",
+    "user_agent": "Mozilla...",
+    "cookies": []
+  }
 }
 ```
 
