@@ -108,21 +108,22 @@ async function scrapeX(url) {
                 }
             }
 
-            /* Cleanup stats (remove "Replies", "Likes" text if present in aria-label) */
-            const cleanStat = (str) => str.replace(/[^0-9KnM.]/g, '').trim();
+            /* Cleanup stats (remove "Replies", "Likes" text, remove trailing dots) */
+            const cleanStat = (str) => str.replace(/[^0-9KnM.]/g, '').replace(/\.$/, '').trim();
 
             /* Media Extraction (Images & Videos) */
             let media = [];
 
-            /* 1. Extract Images from DOM */
+            /* 1. Extract Images from DOM (Try multiple selectors) */
+            /* Standard photo */
             const imageElements = tweet.querySelectorAll('div[data-testid="tweetPhoto"] img');
             imageElements.forEach(img => {
                 const src = img.getAttribute('src');
                 if (src) media.push({ type: 'image', url: src });
             });
+            /* Embedded video poster (often useful if video link fails) -> Skip, we want real video */
 
-            /* 2. Extract Videos from Network Logs (Processed outside evaluate) or specific elements */
-            /* Note: Videos are harder to grab from DOM directly as they use blob, relying on network intercept is better */
+            /* 2. Extract Videos from Network Logs (Processed outside evaluate) */
 
             return {
                 text,
