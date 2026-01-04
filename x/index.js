@@ -59,13 +59,18 @@ async function scrapeX(url) {
             const getText = (selector) => tweet.querySelector(selector)?.innerText || '';
             const getAttr = (selector, attr) => tweet.querySelector(selector)?.getAttribute(attr) || '';
 
-            // Text Extraction (Fix empty text issue)
-            // Sometimes text is in spans inside div[data-testid="tweetText"]
-            const textEl = tweet.querySelector('[data-testid="tweetText"]');
+            // Text Extraction - Improved
+            // Try data-testid="tweetText" directly, or look for spans/divs with lang attribute
             let text = '';
-            if (textEl) {
-                // Clone and remove invisible/hidden elements if any? usually innerText is fine.
-                text = textEl.innerText;
+            const textNode = tweet.querySelector('[data-testid="tweetText"]');
+            if (textNode) {
+                // Collect text from children to avoid hidden elements confusion, currently innerText is best suited
+                text = textNode.innerText || textNode.textContent;
+            } else {
+                // Fallback: looking for main text block via class analysis is hard, try aria-label of the tweet?
+                // The tweet article often has "Tweet text" in aria? No.
+                // Fallback to page title or meta description if main text missing (last resort)
+                // But for now, just keep empty if finding fails.
             }
 
             // Author
@@ -82,8 +87,26 @@ async function scrapeX(url) {
             const replyCount = getAttr('[data-testid="reply"]', 'aria-label') || getText('[data-testid="reply"]');
             const retweetCount = getAttr('[data-testid="retweet"]', 'aria-label') || getText('[data-testid="retweet"]');
             const likeCount = getAttr('[data-testid="like"]', 'aria-label') || getText('[data-testid="like"]');
-            const viewLink = tweet.querySelector('a[href*="/analytics"]');
-            const viewCount = viewLink ? (viewLink.getAttribute('aria-label') || viewLink.innerText) : '';
+
+            // Views - Improved
+            // Views are often in a link href ending with /analytics
+            // OR sometimes just a group with specific aria-label "Views"
+            let viewCount = '';
+            const analyticsLink = tweet.querySelector('a[href*="/analytics"]');
+            if (analyticsLink) {
+                // Try getting text node directly involved with numbers
+                // Often structure is: <div><span><span>1.2M</span></span> <span...>Views</span></div>
+                // We want the number.
+                const rawText = analyticsLink.innerText;
+                // rawText might be "1M Views". 
+                viewCount = rawText.replace(/User Analytics|Views/gi, '').trim();
+            } else {
+                // Try looking for stat with specific svg path (too complex) or aria-label containing "View"
+                const viewGroup = Array.from(tweet.querySelectorAll('[role="group"] [aria-label*="View"]')).pop();
+                if (viewGroup) {
+                    viewCount = viewGroup.getAttribute('aria-label').replace(/Views?/i, '').trim();
+                }
+            }
 
             // Cleanup stats (remove "Replies", "Likes" text if present in aria-label)
             const cleanStat = (str) => str.replace(/[^0-9KnM.]/g, '').trim();
