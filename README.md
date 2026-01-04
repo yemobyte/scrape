@@ -18,24 +18,10 @@ Maintained by **Yemobyte**.
 | **Mediafire** | `/mediafire` - File download links | ✅ Active |
 | **SSWeb** | `/ssweb` - General social media tools | ✅ Active |
 
-## 🛠️ Installation & Usage
+## 💡 Request a Scraper
 
-Each scraper is a standalone Node.js module. To use one:
-
-1. Navigate to the scraper directory:
-   ```bash
-   cd xnxx
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Run the server:
-   ```bash
-   node index.js
-   ```
+Have a specific site you want scraped?
+[**Open an Issue**](https://github.com/yemobyte/scrape/issues) to request it!
 
 ## 📝 License
 This project is open-source and available under the standard license.
