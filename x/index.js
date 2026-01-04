@@ -111,6 +111,19 @@ async function scrapeX(url) {
             /* Cleanup stats (remove "Replies", "Likes" text if present in aria-label) */
             const cleanStat = (str) => str.replace(/[^0-9KnM.]/g, '').trim();
 
+            /* Media Extraction (Images & Videos) */
+            let media = [];
+
+            /* 1. Extract Images from DOM */
+            const imageElements = tweet.querySelectorAll('div[data-testid="tweetPhoto"] img');
+            imageElements.forEach(img => {
+                const src = img.getAttribute('src');
+                if (src) media.push({ type: 'image', url: src });
+            });
+
+            /* 2. Extract Videos from Network Logs (Processed outside evaluate) or specific elements */
+            /* Note: Videos are harder to grab from DOM directly as they use blob, relying on network intercept is better */
+
             return {
                 text,
                 author_name: authorName,
@@ -120,7 +133,8 @@ async function scrapeX(url) {
                 replies: cleanStat(replyCount),
                 retweets: cleanStat(retweetCount),
                 likes: cleanStat(likeCount),
-                views: cleanStat(viewCount)
+                views: cleanStat(viewCount),
+                dom_media: media
             };
         });
 
@@ -130,10 +144,20 @@ async function scrapeX(url) {
             return { error: 'Tweet not found or failed to load' };
         }
 
-        /* Deduplicate and Clean Video URLs */
-        const uniqueMedia = [...new Set(videoUrls)];
-        /* Filter to prefer MP4 over M3U8 if possible, or return best quality? */
-        /* For now return all unique valid video links found during load */
+        /* Combine DOM images with Network videos */
+        /* Deduplicate and Map */
+        const allMedia = [];
+
+        /* Add Images */
+        if (tweetData.dom_media) {
+            tweetData.dom_media.forEach(m => allMedia.push(m));
+        }
+
+        /* Add Videos (from network interception) */
+        const uniqueVideoUrls = [...new Set(videoUrls)];
+        uniqueVideoUrls.forEach(url => {
+            allMedia.push({ type: 'video', url: url });
+        });
 
         return {
             text: tweetData.text,
@@ -149,7 +173,7 @@ async function scrapeX(url) {
             },
             posted_at: tweetData.posted_at,
             date: tweetData.date,
-            media: uniqueMedia
+            media: allMedia
         };
 
     } catch (e) {
