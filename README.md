@@ -17,6 +17,7 @@ Maintained by **Yemobyte**.
 | **Mega** | `/mega` - File metadata & download | ✅ Active |
 | **Mediafire** | `/mediafire` - File download links | ✅ Active |
 | **SSWeb** | `/ssweb` - General social media tools | ✅ Active |
+| **Check-Host** | `/checkhost` - HTTP, Ping, DNS, TCP checks | ✅ Active |
 
 ## 💡 Request a Scraper
 
