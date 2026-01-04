@@ -15,6 +15,8 @@
     "axios": "^1.13.2",
     "cheerio": "^1.1.2",
     "cors": "^2.8.5",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "get-video-id": "^4.1.7",
+    "instagram-url-direct": "^2.0.7"
   }
 }
