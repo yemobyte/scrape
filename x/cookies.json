@@ -1,0 +1,56 @@
+[
+    {
+        "name": "guest_id",
+        "value": "v1%3A176753559477455424",
+        "domain": ".x.com",
+        "path": "/"
+    },
+    {
+        "name": "guest_id_ads",
+        "value": "v1%3A176753559477455424",
+        "domain": ".x.com",
+        "path": "/"
+    },
+    {
+        "name": "guest_id_marketing",
+        "value": "v1%3A176753559477455424",
+        "domain": ".x.com",
+        "path": "/"
+    },
+    {
+        "name": "personalization_id",
+        "value": "\"v1_b3SZ6BYvt6mxVChvCtCrfQ==\"",
+        "domain": ".x.com",
+        "path": "/"
+    },
+    {
+        "name": "gt",
+        "value": "2007815925853298874",
+        "domain": ".x.com",
+        "path": "/"
+    },
+    {
+        "name": "__cuid",
+        "value": "7eb30803b0bb4c2b9bb76fa38ce30c0b",
+        "domain": ".x.com",
+        "path": "/"
+    },
+    {
+        "name": "ct0",
+        "value": "a3ee01e4816c4b1b60585fa505edd2feed08569514c9733731318a4af1a6b6d644179a50f0fc3e99f5eefbecf562516192ef45f5b1d0713b5195108fcdf98963c6e439b56d568446738df24d6b21e71c",
+        "domain": ".x.com",
+        "path": "/"
+    },
+    {
+        "name": "lang",
+        "value": "en",
+        "domain": ".x.com",
+        "path": "/"
+    },
+    {
+        "name": "twid",
+        "value": "u%3D2007815970870755328",
+        "domain": ".x.com",
+        "path": "/"
+    }
+]
