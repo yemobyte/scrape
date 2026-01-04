@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const axios = require('axios');
 const { connect } = require('puppeteer-real-browser');
 
 const app = express();
@@ -12,6 +13,15 @@ app.set('json spaces', 2);
 const cleanStat = (str) => {
     if (!str) return '0';
     return str.replace(/[^0-9\.KMB]/g, '');
+};
+
+/* Helper to remove empty keys recursively */
+const cleanOb = (obj) => {
+    Object.keys(obj).forEach(key => {
+        if (obj[key] && typeof obj[key] === 'object') cleanOb(obj[key]);
+        else if (obj[key] === '' || obj[key] === null || obj[key] === undefined) delete obj[key];
+    });
+    return obj;
 };
 
 /* TikTok Scraper (Direct using Puppeteer to extract hydration data or DOM) */
@@ -83,8 +93,7 @@ async function scrapeTikTokDirect(url) {
                             shares: item.stats.shareCount
                         },
                         video: {
-                            play_url: item.video.playAddr,
-                            /* Fallback to playAddr usually (signed) */
+                            play_url: item.video.playAddr
                         }
                     };
                 }
@@ -129,14 +138,19 @@ async function scrapeTikTokDirect(url) {
                 /* Meta Tags Fallback for Author */
                 const metaDesc = document.querySelector('meta[name="description"]')?.content || '';
                 /* Meta format: "Start watching videos from Nickname (@handle) on TikTok..." or "Watch ... by Nickname (@handle)..." */
-                /* Actually simply getting the H2/H1 is distinct */
 
-                /* Selectors 2024/2025 */
-                const desc = getText(['[data-e2e="video-desc"]', 'h1', '.css-1djj2wz-DivDescription']) || document.title;
+                /* Selectors */
+                const desc = getText(['[data-e2e="video-desc"]', 'h1', '.css-1djj2wz-DivDescription']);
 
-                /* Author Logic */
+                /* Author Logic - Stronger Parsing */
                 let uniqueId = getText(['[data-e2e="browse-username"]', '[data-e2e="user-title"]', 'a[href^="/@"]']);
                 let nickname = getText(['[data-e2e="browse-user-avatar"]', '[data-e2e="user-subtitle"]', 'h2[data-e2e="user-title"]']);
+
+                /* Filter "Profile" or "TikTok" generic titles */
+                const isGeneric = (s) => !s || s === 'Profile' || s === 'TikTok';
+
+                if (isGeneric(uniqueId)) uniqueId = '';
+                if (isGeneric(nickname)) nickname = '';
 
                 /* If selectors failed, parse from URL or Meta */
                 if (!uniqueId) {
@@ -144,7 +158,15 @@ async function scrapeTikTokDirect(url) {
                     const match = window.location.href.match(/@([\w\.]+)/);
                     if (match) uniqueId = match[1];
                 }
-                if (!nickname && uniqueId) nickname = uniqueId; // Fallback
+
+                /* Parse from Meta Description if still missing */
+                /* Example: "Watch generic's video..." or "Generic (@generic) on TikTok" */
+                if (!uniqueId && metaDesc) {
+                    const metaMatch = metaDesc.match(/\(@([^)]+)\)/);
+                    if (metaMatch) uniqueId = metaMatch[1];
+                }
+
+                if (!nickname && uniqueId) nickname = uniqueId;
 
                 const plays = getText(['[data-e2e="video-views"]']);
                 const likes = getText(['[data-e2e="like-count"]', '[data-e2e="browse-like-count"]']);
@@ -162,13 +184,13 @@ async function scrapeTikTokDirect(url) {
                 },
                 stats: domData.stats,
                 video: {
-                    play_url: domData.videoSrc /* Might be blob, replaced below if network found */
+                    play_url: domData.videoSrc
                 }
             };
         }
 
-        /* Parse Author more aggressively if missing */
-        if (!finalResult.author.unique_id) {
+        /* Parse Author more aggressively if missing from result */
+        if (!finalResult.author.unique_id || finalResult.author.unique_id === 'Profile') {
             /* Try regex on canonical link */
             const canonical = await page.evaluate(() => document.querySelector('link[rel="canonical"]')?.href);
             if (canonical) {
@@ -176,7 +198,9 @@ async function scrapeTikTokDirect(url) {
                 if (match) finalResult.author.unique_id = match[1];
             }
         }
-        if (!finalResult.author.nickname) finalResult.author.nickname = finalResult.author.unique_id;
+        if (finalResult.author.nickname === 'Profile' || !finalResult.author.nickname) {
+            finalResult.author.nickname = finalResult.author.unique_id;
+        }
 
         await browser.close();
 
@@ -192,9 +216,11 @@ async function scrapeTikTokDirect(url) {
         finalResult.stats.comments = fmt(finalResult.stats.comments);
         finalResult.stats.shares = fmt(finalResult.stats.shares);
 
-        /* Add Proxy Stream URL because TikTok links are strict (403 Forbidden without Referer) */
-        /* encoding the url to pass to stream endpoint */
+        /* Add Proxy Stream URL */
         finalResult.video.proxy_url = `http://localhost:${PORT}/tiktok/stream?video=${encodeURIComponent(finalResult.video.play_url)}`;
+
+        /* Clean Empty Keys */
+        cleanOb(finalResult);
 
         return {
             status: true,
