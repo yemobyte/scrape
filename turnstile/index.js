@@ -9,21 +9,23 @@ app.use(cors());
 app.use(express.json());
 app.set('json spaces', 2);
 
-/* Global Browser Instance Lock */
-let browserLock = false;
+/* Queue System for Rate Limiting */
+const queue = [];
+let isProcessing = false;
 
-/* Turnstile Solver Logic based on Cloudflare Documentation */
-/* Reference: https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/ */
-async function solveTurnstile(url) {
-    if (browserLock) {
-        return { status: false, message: 'Server busy, please try again.' };
-    }
-    browserLock = true;
+/* Navigation & Solve Logic */
+async function processQueue() {
+    if (isProcessing || queue.length === 0) return;
+    isProcessing = true;
+
+    const { url, resolve, reject } = queue.shift();
+
     let browser = null;
     let page = null;
 
     try {
-        /* Connect using Puppeteer Real Browser to mimic genuine user interaction */
+        console.log(`[Queue] Processing: ${url}`);
+
         const { browser: connectedBrowser, page: connectedPage } = await connect({
             headless: 'auto',
             turnstile: true,
@@ -38,134 +40,108 @@ async function solveTurnstile(url) {
         browser = connectedBrowser;
         page = connectedPage;
 
-        /* Navigate to the target URL containing the Cloudflare Turnstile widget */
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-        /* Wait for the Turnstile widget to initialize and render */
-        /* We monitor the window.turnstile object and the hidden input field */
-
+        /* Cloudflare Docs Logic: Wait for 'turnstile' object and 'getResponse' */
         let token = null;
-        let maxRetries = 40; /* 40 seconds timeout */
+        let retries = 0;
+        const maxRetries = 40; /* 40 seconds */
 
-        while (maxRetries > 0) {
+        while (retries < maxRetries) {
             token = await page.evaluate(() => {
-                /* Method 1: Check standard hidden input field */
-                /* Cloudflare automatically injects this field upon success */
-                const hiddenInput = document.querySelector('[name="cf-turnstile-response"]');
-                if (hiddenInput && hiddenInput.value) {
-                    return hiddenInput.value;
+                /* Check via Official API */
+                if (window.turnstile) {
+                    try {
+                        const response = window.turnstile.getResponse();
+                        if (response) return response;
+                    } catch (e) { }
                 }
 
-                /* Method 2: Use Official Turnstile API if available in global scope */
-                if (window.turnstile && typeof window.turnstile.getResponse === 'function') {
-                    const response = window.turnstile.getResponse();
-                    if (response) return response;
-                }
-
-                /* Method 3: Detect and Click DOM Element if token is missing */
-                /* Some sites like teraboxdl.site have a visible checkbox that needs a click */
-                /* This is a "dumb" click attempt if the auto-solver didn't catch it yet */
-                const checkbox = document.querySelector('.cf-turnstile iframe') || document.querySelector('.cf-turnstile');
-                if (checkbox) {
-                    /* Only return 'click_needed' to signal main loop to perform action */
-                    /* We don't click inside evaluate context usually */
-                    return 'click_needed';
-                }
+                /* Fallback: Hidden Input (Standard implementation) */
+                const input = document.querySelector('[name="cf-turnstile-response"]');
+                if (input && input.value) return input.value;
 
                 return null;
             });
 
-            if (token === 'click_needed') {
-                /* Perform a real click on the widget location */
-                try {
-                    await page.click('.cf-turnstile');
-                    await new Promise(r => setTimeout(r, 2000)); /* Wait for possible solve */
-                } catch (e) { }
-                token = null; /* Reset and check again */
-            }
+            if (token) break;
 
-            if (token && token !== 'click_needed') break;
-
-            /* Wait 1 second before next check */
             await new Promise(r => setTimeout(r, 1000));
-            maxRetries--;
+            retries++;
         }
 
-        if (!token) {
-            throw new Error('Timeout: Failed to retrieve Turnstile token.');
-        }
+        if (!token) throw new Error('Token retrieval timed out');
 
-        /* Extract Execution Metadata */
+        /* Extract Data */
         const userAgent = await page.evaluate(() => navigator.userAgent);
-
-        /* Extract Cookies including cf_clearance */
         const cookies = await page.cookies();
         const cfClearance = cookies.find(c => c.name === 'cf_clearance')?.value || null;
 
-        await browser.close();
-        browserLock = false;
-
-        return {
+        resolve({
             status: true,
             author: 'Yemobyte',
-            message: 'Successfully solved Turnstile challenge',
+            message: 'Success',
             data: {
-                token: token,
+                token,
                 cf_clearance: cfClearance,
                 user_agent: userAgent,
-                cookies: cookies
+                cookies
             }
-        };
+        });
 
     } catch (error) {
-        /* Ensure browser is closed on error */
-        if (browser) await browser.close();
-        browserLock = false;
-
-        /* Error Logging */
-        console.error('Turnstile Solver Error:', error.message);
-
-        return {
+        console.error(`[Error] ${error.message}`);
+        resolve({
             status: false,
             author: 'Yemobyte',
             message: error.message
-        };
+        });
+    } finally {
+        if (browser) await browser.close();
+
+        /* 5 Seconds Delay Mechanism */
+        console.log('[Queue] Waiting 5 seconds before next task...');
+        setTimeout(() => {
+            isProcessing = false;
+            processQueue();
+        }, 5000);
     }
 }
 
-/* API Route Definition */
+/* API Endpoints */
 app.get('/', (req, res) => {
     res.json({
         status: true,
         author: 'Yemobyte',
-        documentation: 'Cloudflare Turnstile Solver based on Puppeteer Real Browser',
-        endpoints: {
-            method: 'GET/POST',
-            path: '/turnstile',
-            params: { url: 'https://example.com' }
-        }
+        message: 'Turnstile Solver with Queue System',
+        queue_length: queue.length
     });
 });
 
-app.get('/turnstile', async (req, res) => {
+app.get('/turnstile', (req, res) => {
     const { url } = req.query;
-    if (!url) return res.status(400).json({ status: false, message: 'URL parameter is required' });
+    if (!url) return res.status(400).json({ status: false, message: 'URL required' });
 
-    const result = await solveTurnstile(url);
-    const code = result.status ? 200 : 500;
-    res.status(code).json(result);
+    new Promise((resolve, reject) => {
+        queue.push({ url, resolve, reject });
+        processQueue();
+    }).then(result => {
+        const code = result.status ? 200 : 500;
+        res.status(code).json(result);
+    });
 });
 
-app.post('/turnstile', async (req, res) => {
+app.post('/turnstile', (req, res) => {
     const { url } = req.body;
-    if (!url) return res.status(400).json({ status: false, message: 'URL parameter is required in body' });
+    if (!url) return res.status(400).json({ status: false, message: 'URL required' });
 
-    const result = await solveTurnstile(url);
-    const code = result.status ? 200 : 500;
-    res.status(code).json(result);
+    new Promise((resolve, reject) => {
+        queue.push({ url, resolve, reject });
+        processQueue();
+    }).then(result => {
+        const code = result.status ? 200 : 500;
+        res.status(code).json(result);
+    });
 });
 
-/* Server Initialization */
-app.listen(PORT, () => {
-    console.log(`Turnstile Solver API running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Turnstile Solver with Queue running on port ${PORT}`));
