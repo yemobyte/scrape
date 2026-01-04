@@ -134,7 +134,7 @@ async function streamFile(url, res) {
 app.get('/', (req, res) => {
     res.json({
         status: true,
-        author: 'Otakudesu',
+        author: 'Yemo',
         description: 'Sfile.mobi Scraper API',
         endpoints: {
             search: '/sfile/search?q=...',
@@ -152,7 +152,7 @@ app.get('/sfile/search', async (req, res) => {
         const results = await searchSfile(q);
         res.json({
             status: true,
-            author: 'Otakudesu',
+            author: 'Yemo',
             data: results
         });
     } catch (e) {
@@ -172,7 +172,7 @@ app.get('/sfile/download', async (req, res) => {
 
         res.json({
             status: true,
-            author: 'Otakudesu',
+            author: 'Yemo',
             data: {
                 ...info,
                 stream_url: streamUrl

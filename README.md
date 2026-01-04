@@ -1,23 +1,23 @@
-# Scraper Repository
+# Scrape API Collection
 
-Kumpulan scraper untuk berbagai situs web. Repository ini dibuat untuk tujuan pembelajaran dan pengembangan.
+A collection of Node.js scrapers and APIs by **Yemo**.
 
-## Daftar Scraper
+## Available Scrapers
 
-- [Otakudesu](./otakudesu/)
-- [SSSTik (TikTok)](./ssstik/)
-- [MediaFire](./mediafire/)
-- [SSWeb](./ssweb/)
-- [MEGA](./mega/)
-- [Animedao (9anime)](./animedao/)
-- [Anichin](./anichin/)
-- [Toolsmart (Youtube)](./toolsmart/)
+### 1. Sfile Scraper (`/sfile`)
+A dedicated tool for searching and downloading files from **Sfile.mobi**.
+- **Search**: Find files easily.
+- **Download**: Extract download links.
+- **Stream**: Proxy download support.
 
-## Request Scraper
+## Installation
+Navigate to the specific scraper directory and install dependencies:
 
-Jika Anda memiliki permintaan untuk scraper baru atau menemukan masalah, silakan buka Issue di link berikut:
-[https://github.com/yemobyte/scrape/issues](https://github.com/yemobyte/scrape/issues)
+```bash
+cd sfile
+npm install
+node index.js
+```
 
-## Lisensi
-
-Proyek ini dilisensikan di bawah [GNU General Public License v3.0](LICENSE.md).
+## License
+MIT
