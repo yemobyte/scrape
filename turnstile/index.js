@@ -62,10 +62,29 @@ async function solveTurnstile(url) {
                     if (response) return response;
                 }
 
+                /* Method 3: Detect and Click DOM Element if token is missing */
+                /* Some sites like teraboxdl.site have a visible checkbox that needs a click */
+                /* This is a "dumb" click attempt if the auto-solver didn't catch it yet */
+                const checkbox = document.querySelector('.cf-turnstile iframe') || document.querySelector('.cf-turnstile');
+                if (checkbox) {
+                    /* Only return 'click_needed' to signal main loop to perform action */
+                    /* We don't click inside evaluate context usually */
+                    return 'click_needed';
+                }
+
                 return null;
             });
 
-            if (token) break;
+            if (token === 'click_needed') {
+                /* Perform a real click on the widget location */
+                try {
+                    await page.click('.cf-turnstile');
+                    await new Promise(r => setTimeout(r, 2000)); /* Wait for possible solve */
+                } catch (e) { }
+                token = null; /* Reset and check again */
+            }
+
+            if (token && token !== 'click_needed') break;
 
             /* Wait 1 second before next check */
             await new Promise(r => setTimeout(r, 1000));
