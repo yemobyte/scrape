@@ -10,7 +10,7 @@ Profesional Scraper API untuk **Toolsmart AI** (Khusus YouTube Features).
 
 ## Prasyarat
 
-- Node.js (v14+)
+- Node.js (Versi LTS)
 - **yt-dlp** (Wajib terinstall di sistem / VPS)
 
 ## Instalasi
