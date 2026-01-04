@@ -68,7 +68,7 @@ async function scrapeCheckHost(domain, type = 'http') {
 
                 /* Detect CheckHost table specific structure */
                 const locationCell = cols[0];
-                const resultCell = cols[cols.length - 1]; // Last cell usually has result/time
+                const resultCell = cols[cols.length - 1]; /* Last cell usually has result/time */
 
                 const countryImg = locationCell.querySelector('img.flag');
                 const country = countryImg ? (countryImg.alt || countryImg.title) : '';
