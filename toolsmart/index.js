@@ -69,6 +69,7 @@ async function scrapePinterest(url) {
 app.get('/', (req, res) => {
     res.json({
         status: true,
+        author: 'Yemobyte',
         endpoints: {
             youtube_video: '/toolsmart/youtube/video?url=',
             youtube_mp3: '/toolsmart/youtube/mp3?url=',
