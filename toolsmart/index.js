@@ -69,16 +69,14 @@ async function scrapePinterest(url) {
 app.get('/', (req, res) => {
     res.json({
         status: true,
-        message: 'Toolsmart All-in-One Social Media Scraper API',
         endpoints: {
-            youtube_video: '/toolsmart/youtube/video?url=...',
-            youtube_mp3: '/toolsmart/youtube/mp3?url=...',
-            youtube_thumbnail: '/toolsmart/youtube/thumbnail?url=...',
-            facebook: '/toolsmart/facebook?url=...',
-            instagram: '/toolsmart/instagram?url=...',
-            pinterest: '/toolsmart/pinterest?url=...'
-        },
-        author: 'User'
+            youtube_video: '/toolsmart/youtube/video?url=',
+            youtube_mp3: '/toolsmart/youtube/mp3?url=',
+            youtube_thumbnail: '/toolsmart/youtube/thumbnail?url=',
+            facebook: '/toolsmart/facebook?url=',
+            instagram: '/toolsmart/instagram?url=',
+            pinterest: '/toolsmart/pinterest?url='
+        }
     });
 });
 
