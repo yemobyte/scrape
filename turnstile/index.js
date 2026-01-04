@@ -3,111 +3,150 @@ const cors = require('cors');
 const { connect } = require('puppeteer-real-browser');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 7860;
 
 app.use(cors());
 app.use(express.json());
 app.set('json spaces', 2);
 
-/* Turnstile Solver Function */
+/* Global Browser Instance Lock */
+let browserLock = false;
+
+/* Turnstile Solver Logic based on Cloudflare Documentation */
+/* Reference: https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/ */
 async function solveTurnstile(url) {
+    if (browserLock) {
+        return { status: false, message: 'Server busy, please try again.' };
+    }
+    browserLock = true;
     let browser = null;
+    let page = null;
+
     try {
-        const { browser: connectedBrowser, page } = await connect({
+        /* Connect using Puppeteer Real Browser to mimic genuine user interaction */
+        const { browser: connectedBrowser, page: connectedPage } = await connect({
             headless: 'auto',
             turnstile: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled']
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-blink-features=AutomationControlled',
+                '--disable-infobars',
+                '--window-size=1280,800'
+            ]
         });
         browser = connectedBrowser;
+        page = connectedPage;
 
-        /* Go to validation page */
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
+        /* Navigate to the target URL containing the Cloudflare Turnstile widget */
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-        /* Wait for Turnstile Widget to be "solved" */
-        /* The solver within puppeteer-real-browser should handle the click */
-        /* We just need to wait for the token to appear in the DOM or hidden input */
+        /* Wait for the Turnstile widget to initialize and render */
+        /* We monitor the window.turnstile object and the hidden input field */
 
         let token = null;
-        let attempts = 0;
+        let maxRetries = 40; /* 40 seconds timeout */
 
-        while (!token && attempts < 30) {
+        while (maxRetries > 0) {
             token = await page.evaluate(() => {
-                /* Check hidden input often used by CF/Turnstile */
-                const input = document.querySelector('[name="cf-turnstile-response"]');
-                if (input && input.value) return input.value;
-
-                /* Check global turnstile object */
-                if (window.turnstile) {
-                    try {
-                        return window.turnstile.getResponse();
-                    } catch (e) { }
+                /* Method 1: Check standard hidden input field */
+                /* Cloudflare automatically injects this field upon success */
+                const hiddenInput = document.querySelector('[name="cf-turnstile-response"]');
+                if (hiddenInput && hiddenInput.value) {
+                    return hiddenInput.value;
                 }
+
+                /* Method 2: Use Official Turnstile API if available in global scope */
+                if (window.turnstile && typeof window.turnstile.getResponse === 'function') {
+                    const response = window.turnstile.getResponse();
+                    if (response) return response;
+                }
+
                 return null;
             });
+
+            if (token) break;
+
+            /* Wait 1 second before next check */
             await new Promise(r => setTimeout(r, 1000));
-            attempts++;
+            maxRetries--;
         }
 
-        /* User agent extraction */
+        if (!token) {
+            throw new Error('Timeout: Failed to retrieve Turnstile token.');
+        }
+
+        /* Extract Execution Metadata */
         const userAgent = await page.evaluate(() => navigator.userAgent);
 
-        /* Cookie Extraction (Important for cf_clearance) */
+        /* Extract Cookies including cf_clearance */
         const cookies = await page.cookies();
-        const cfClearance = cookies.find(c => c.name === 'cf_clearance')?.value;
+        const cfClearance = cookies.find(c => c.name === 'cf_clearance')?.value || null;
 
         await browser.close();
-
-        if (!token) throw new Error('Turnstile token verification timeout.');
+        browserLock = false;
 
         return {
             status: true,
             author: 'Yemobyte',
+            message: 'Successfully solved Turnstile challenge',
             data: {
                 token: token,
-                cf_clearance: cfClearance || null,
+                cf_clearance: cfClearance,
                 user_agent: userAgent,
-                cookies: cookies /* Return all cookies for completeness */
+                cookies: cookies
             }
         };
 
-    } catch (e) {
-        console.error('Turnstile Solver Error:', e);
+    } catch (error) {
+        /* Ensure browser is closed on error */
         if (browser) await browser.close();
+        browserLock = false;
+
+        /* Error Logging */
+        console.error('Turnstile Solver Error:', error.message);
+
         return {
             status: false,
-            message: e.message
+            author: 'Yemobyte',
+            message: error.message
         };
     }
 }
 
+/* API Route Definition */
 app.get('/', (req, res) => {
     res.json({
         status: true,
         author: 'Yemobyte',
-        description: 'Turnstile Solver API',
+        documentation: 'Cloudflare Turnstile Solver based on Puppeteer Real Browser',
         endpoints: {
-            solve: '/turnstile?url=...'
+            method: 'GET/POST',
+            path: '/turnstile',
+            params: { url: 'https://example.com' }
         }
     });
 });
 
-/* Handle both GET and POST */
 app.get('/turnstile', async (req, res) => {
     const { url } = req.query;
-    if (!url) return res.status(400).json({ status: false, message: 'URL required' });
+    if (!url) return res.status(400).json({ status: false, message: 'URL parameter is required' });
 
     const result = await solveTurnstile(url);
-    if (!result.status) return res.status(500).json(result);
-    res.json(result);
+    const code = result.status ? 200 : 500;
+    res.status(code).json(result);
 });
 
 app.post('/turnstile', async (req, res) => {
     const { url } = req.body;
-    if (!url) return res.status(400).json({ status: false, message: 'URL required' });
+    if (!url) return res.status(400).json({ status: false, message: 'URL parameter is required in body' });
 
     const result = await solveTurnstile(url);
-    if (!result.status) return res.status(500).json(result);
-    res.json(result);
+    const code = result.status ? 200 : 500;
+    res.status(code).json(result);
 });
 
-app.listen(PORT, () => console.log(`Turnstile Solver running on http://localhost:${PORT}`));
+/* Server Initialization */
+app.listen(PORT, () => {
+    console.log(`Turnstile Solver API running on port ${PORT}`);
+});
