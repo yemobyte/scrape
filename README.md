@@ -11,6 +11,7 @@ Kumpulan scraper untuk berbagai situs web. Repository ini dibuat untuk tujuan pe
 - [MEGA](./mega/)
 - [Animedao (9anime)](./animedao/)
 - [Anichin](./anichin/)
+- [Toolsmart (Youtube)](./toolsmart/)
 
 ## Request Scraper
 
