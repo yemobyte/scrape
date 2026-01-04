@@ -129,15 +129,94 @@ async function scrapeXRobust(url) {
         });
 
         await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-        await new Promise(r => setTimeout(r, 5000)); // wait for media load
+        // await new Promise(r => setTimeout(r, 5000)); // wait for media load
 
-        const text = await page.evaluate(() => document.querySelector('[data-testid="tweetText"]')?.innerText || '');
+        /* Wait for tweet to load */
+        const tweetSelector = 'article[data-testid="tweet"]';
+        try {
+            await page.waitForSelector(tweetSelector, { timeout: 30000 });
+        } catch (e) {
+            console.log("Tweet selector not immediately found, waiting...");
+            await new Promise(r => setTimeout(r, 5000));
+        }
+
+        const tweetData = await page.evaluate(() => {
+            const tweet = document.querySelector('article[data-testid="tweet"]');
+            if (!tweet) return null;
+
+            // Helper to get text safely
+            const getText = (selector) => tweet.querySelector(selector)?.innerText || '';
+            const getAria = (selector) => tweet.querySelector(selector)?.getAttribute('aria-label') || '';
+
+            // Text
+            const text = getText('[data-testid="tweetText"]');
+
+            // Author Info
+            const userNames = getText('[data-testid="User-Name"]').split('\n');
+            const authorName = userNames[0] || '';
+            const authorUsername = userNames[1] || ''; // usually @handle
+
+            // Time
+            const timeEl = tweet.querySelector('time');
+            const postedAt = timeEl ? timeEl.getAttribute('datetime') : '';
+            const dateDisplay = timeEl ? timeEl.innerText : '';
+
+            // Metrics (Reliable from Aria Label usually, e.g. "100 likes")
+            // Or inner text which might be "1K"
+            const replyCount = getText('[data-testid="reply"]');
+            const retweetCount = getText('[data-testid="retweet"]');
+            const likeCount = getText('[data-testid="like"]');
+            const viewCount = getText('[href*="/analytics"]'); // Views often linked to analytics or just a stat span
+
+            // Media
+            const media = [];
+            tweet.querySelectorAll('video').forEach(v => {
+                let src = v.src;
+                if (!src && v.querySelector('source')) src = v.querySelector('source').src;
+                media.push({ type: 'video', url: src, blob: src.startsWith('blob:') });
+            });
+            tweet.querySelectorAll('img[src*="media"]').forEach(img => {
+                media.push({ type: 'image', url: img.src });
+            });
+
+            return {
+                text,
+                author_name: authorName,
+                author_username: authorUsername,
+                posted_at: postedAt,
+                date: dateDisplay,
+                replies: replyCount,
+                retweets: retweetCount,
+                likes: likeCount,
+                views: viewCount,
+                media_dom: media // Fallback if network interception fails
+            };
+        });
 
         await browser.close();
 
+        if (!tweetData) {
+            return { error: 'Tweet not found or failed to load' };
+        }
+
+        /* Merge network discovered videos if available, else use DOM */
+        const finalMedia = videoUrls.length > 0 ? videoUrls : tweetData.media_dom.map(m => m.url);
+
         return {
-            text,
-            media: videoUrls.length > 0 ? videoUrls : ['No video found or only blob detected']
+            text: tweetData.text,
+            author: {
+                name: tweetData.author_name,
+                username: tweetData.author_username
+            },
+            stats: {
+                likes: tweetData.likes,
+                retweets: tweetData.retweets,
+                replies: tweetData.replies,
+                views: tweetData.views
+            },
+            posted_at: tweetData.posted_at,
+            date: tweetData.date,
+            media: finalMedia
         };
 
     } catch (e) {
@@ -150,7 +229,7 @@ async function scrapeXRobust(url) {
 app.get('/', (req, res) => {
     res.json({
         status: true,
-        author: 'Yemo',
+        author: 'Yemobyte',
         description: 'X (Twitter) Scraper',
         endpoints: {
             download: '/x/download?url=...'
@@ -167,7 +246,7 @@ app.get('/x/download', async (req, res) => {
 
         res.json({
             status: true,
-            author: 'Yemo',
+            author: 'Yemobyte',
             data: data
         });
 
