@@ -71,6 +71,7 @@ async function solveTurnstile(url) {
         };
 
     } catch (e) {
+        console.error('Turnstile Solver Error:', e);
         if (browser) await browser.close();
         return {
             status: false,
