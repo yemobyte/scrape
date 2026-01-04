@@ -25,50 +25,56 @@ async function scrapeTikTokDirect(url) {
         });
         browser = connectedBrowser;
 
-        /* Go to TikTok Video Page */
-        /* TikTok often has CAPTCHA. puppeteer-real-browser handles Turnstile but maybe not slider captcha found on TikTok. */
-        /* However, for individual video pages, it usually loads. */
+        /* Network Interception for Direct MP4 */
+        let directVideoUrl = null;
+        const client = await page.target().createCDPSession();
+        await client.send('Network.enable');
+
+        /* Listener for video response */
+        page.on('response', (response) => {
+            const rUrl = response.url();
+            const contentType = response.headers()['content-type'] || '';
+            /* Check for video content or specific TikTok video domains */
+            if ((contentType.includes('video') || rUrl.includes('.mp4')) && !rUrl.includes('blob:')) {
+                /* Prioritize known video CDN domains if multiple appear */
+                if (!directVideoUrl || rUrl.length > directVideoUrl.length) {
+                    directVideoUrl = rUrl;
+                }
+            }
+        });
+
         await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
 
-        /* Wait for hydration data or specific selector */
-        /* SIGI_STATE is the global object containing metadata */
-
-        let sigiData = null;
-        try {
-            sigiData = await page.evaluate(() => {
-                /* Try to find the SIGI_STATE script */
-                const script = document.getElementById('SIGI_STATE');
-                if (script) {
-                    return JSON.parse(script.textContent);
-                }
-                /* Fallback: __UNIVERSAL_DATA_FOR_REHYDRATION__ */
-                const script2 = document.getElementById('__UNIVERSAL_DATA_FOR_REHYDRATION__');
-                if (script2) {
-                    return JSON.parse(script2.textContent);
+        /* Attempt to parse SIGI_STATE/Universal Data for perfect metadata */
+        const sigiData = await page.evaluate(() => {
+            /* Helper to safely parse specific scripts */
+            const parseScript = (id) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    try { return JSON.parse(el.textContent); } catch (e) { }
                 }
                 return null;
-            });
-        } catch (e) { }
+            };
 
+            /* TikTok Hydration IDs */
+            return parseScript('SIGI_STATE') || parseScript('__UNIVERSAL_DATA_FOR_REHYDRATION__');
+        });
+
+        /* Extract Data from Hydration if available */
+        let finalResult = null;
         if (sigiData) {
-            /* Parse SIGI data (Structure varies 2024-2025) */
-            /* Usually ItemModule or default Scope */
-            /* We try to extract best effort */
-            const itemModule = sigiData.ItemModule;
-            /* Find the video ID key */
-            const videoId = Object.keys(itemModule || {})[0];
-            if (videoId) {
-                const item = itemModule[videoId];
-                await browser.close();
-
-                return {
-                    status: true,
-                    author: 'Yemobyte',
-                    result: {
+            /* Handle SIGI Structure */
+            /* Structure A: ItemModule */
+            if (sigiData.ItemModule) {
+                const vid = Object.keys(sigiData.ItemModule)[0];
+                const item = sigiData.ItemModule[vid];
+                if (item) {
+                    finalResult = {
                         title: item.desc,
                         author: {
                             unique_id: item.author,
-                            nickname: item.nickname || item.author
+                            nickname: item.nickname,
+                            avatar: item.authorStats?.avatarLarger || ''
                         },
                         stats: {
                             plays: item.stats.playCount,
@@ -77,61 +83,109 @@ async function scrapeTikTokDirect(url) {
                             shares: item.stats.shareCount
                         },
                         video: {
-                            no_watermark: item.video.playAddr, /* This might be watermarked depending on hydration, but usually playAddr is raw? */
-                            /* Actually SIGI often gives expiring links. */
-                            /* But it is "Direct from TikTok". */
-                            resolutions: item.video.bitrateInfo
+                            play_url: item.video.playAddr,
+                            /* Fallback to playAddr usually (signed) */
                         }
-                    }
-                };
+                    };
+                }
+            }
+            /* Structure B: __UNIVERSAL_DATA__ defaultScope */
+            if (!finalResult && sigiData.defaultScope && sigiData.defaultScope['webapp.video-detail']) {
+                const detail = sigiData.defaultScope['webapp.video-detail'].itemInfo?.itemStruct;
+                if (detail) {
+                    finalResult = {
+                        title: detail.desc,
+                        author: {
+                            unique_id: detail.author.uniqueId,
+                            nickname: detail.author.nickname,
+                            avatar: detail.author.avatarLarger
+                        },
+                        stats: {
+                            plays: detail.stats.playCount,
+                            likes: detail.stats.diggCount,
+                            comments: detail.stats.commentCount,
+                            shares: detail.stats.shareCount
+                        },
+                        video: {
+                            play_url: detail.video.playAddr
+                        }
+                    };
+                }
             }
         }
 
-        /* Fallback: Pure DOM Scraping if SIGI fails or structure changed */
-        const domData = await page.evaluate(() => {
-            const getTxt = (sel) => document.querySelector(sel)?.innerText || '';
-            const desc = getTxt('[data-e2e="video-desc"]');
-            const authId = getTxt('[data-e2e="browse-username"]');
-            const authName = getTxt('[data-e2e="browse-user-avatar"]'); /* might be partial */
-
-            const like = getTxt('[data-e2e="like-count"]');
-            const comment = getTxt('[data-e2e="comment-count"]');
-            const share = getTxt('[data-e2e="share-count"]');
-
-            const videoSrc = document.querySelector('video')?.src;
-
-            return {
-                desc, authId, authName, like, comment, share, videoSrc
-            };
-        });
-
-        await browser.close();
-
-        if (domData.videoSrc || domData.desc) {
-            return {
-                status: true,
-                author: 'Yemobyte',
-                result: {
-                    title: domData.desc,
-                    author: {
-                        unique_id: domData.authId,
-                        nickname: domData.authName
-                    },
-                    stats: {
-                        plays: "Hidden (DOM)",
-                        likes: cleanStat(domData.like),
-                        comments: cleanStat(domData.comment),
-                        shares: cleanStat(domData.share)
-                    },
-                    video: {
-                        play_url: domData.videoSrc,
-                        note: "Direct Source Link (May have watermark or expire)"
+        /* Fallback: Robust DOM Scraping with multiple selectors */
+        if (!finalResult) {
+            const domData = await page.evaluate(() => {
+                const getText = (selectors) => {
+                    for (const sel of selectors) {
+                        const el = document.querySelector(sel);
+                        if (el) return el.innerText || el.textContent;
                     }
+                    return '';
+                };
+                const getSrc = (sel) => document.querySelector(sel)?.getAttribute('src');
+
+                /* Meta Tags Fallback for Author */
+                const metaDesc = document.querySelector('meta[name="description"]')?.content || '';
+                /* Meta format: "Start watching videos from Nickname (@handle) on TikTok..." or "Watch ... by Nickname (@handle)..." */
+                /* Actually simply getting the H2/H1 is distinct */
+
+                /* Selectors 2024/2025 */
+                const desc = getText(['[data-e2e="video-desc"]', 'h1', '.css-1djj2wz-DivDescription']) || document.title;
+
+                /* Author Logic */
+                let uniqueId = getText(['[data-e2e="browse-username"]', '[data-e2e="user-title"]', 'a[href^="/@"]']);
+                let nickname = getText(['[data-e2e="browse-user-avatar"]', '[data-e2e="user-subtitle"]', 'h2[data-e2e="user-title"]']);
+
+                /* If selectors failed, parse from URL or Meta */
+                if (!uniqueId) {
+                    /* Try URL */
+                    const match = window.location.href.match(/@([\w\.]+)/);
+                    if (match) uniqueId = match[1];
+                }
+                if (!nickname && uniqueId) nickname = uniqueId; // Fallback
+
+                const plays = getText(['[data-e2e="video-views"]']);
+                const likes = getText(['[data-e2e="like-count"]', '[data-e2e="browse-like-count"]']);
+                const comments = getText(['[data-e2e="comment-count"]']);
+                const shares = getText(['[data-e2e="share-count"]']);
+
+                return { desc, uniqueId, nickname, stats: { likes, comments, shares, plays }, videoSrc: document.querySelector('video')?.src };
+            });
+
+            finalResult = {
+                title: domData.desc,
+                author: {
+                    unique_id: domData.uniqueId,
+                    nickname: domData.nickname
+                },
+                stats: domData.stats,
+                video: {
+                    play_url: domData.videoSrc /* Might be blob, replaced below if network found */
                 }
             };
         }
 
-        throw new Error('Video Not Found (DOM/SIGI failed)');
+        await browser.close();
+
+        /* Replace Video URL with Network Intercepted Direct URL (Best Quality/Real) */
+        if (directVideoUrl) {
+            finalResult.video.play_url = directVideoUrl;
+            finalResult.video.is_direct = true;
+        }
+
+        /* Clean Stats */
+        const fmt = (s) => s ? String(s).replace(/[^0-9\.KMB]/g, '') : '0';
+        finalResult.stats.likes = fmt(finalResult.stats.likes);
+        finalResult.stats.comments = fmt(finalResult.stats.comments);
+        finalResult.stats.shares = fmt(finalResult.stats.shares);
+
+        return {
+            status: true,
+            author: 'Yemobyte',
+            result: finalResult
+        };
 
     } catch (e) {
         if (browser) await browser.close();
