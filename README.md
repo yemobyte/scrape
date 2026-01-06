@@ -18,6 +18,7 @@ Maintained by **Yemobyte**.
 | **Mediafire** | `/mediafire` - File download links | ✅ Active |
 | **SSWeb** | `/ssweb` - General social media tools | ✅ Active |
 | **Check-Host** | `/checkhost` - HTTP, Ping, DNS, TCP checks | ✅ Active |
+| **RunTheGauntlet** | `/runthegauntlet` - Shock video scraper | ✅ Active |
 
 ## 💡 Request a Scraper
 
