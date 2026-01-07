@@ -5,20 +5,7 @@ Maintained by **Yemobyte**.
 
 ## 🚀 Active Scrapers
 
-| Platform | Endpoint/Description | Status |
-| :--- | :--- | :--- |
-| **XNXX** | `/xnxx` - Adult video streaming & search | ✅ Active |
-| **X (Twitter)** | `/x` - Video & media downloader | ✅ Active |
-| **Terabox** | `/terabox` - File & video downloader | ✅ Active |
-| **Otakudesu** | `/otakudesu` - Anime streaming | ✅ Active |
-| **Anichin** | `/anichin` - Donghua streaming | ✅ Active |
-| **AnimeDao** | `/animedao` - Anime streaming | ✅ Active |
-| **SSSTik** | `/ssstik` - TikTok without watermark | ✅ Active |
-| **Mega** | `/mega` - File metadata & download | ✅ Active |
-| **Mediafire** | `/mediafire` - File download links | ✅ Active |
-| **SSWeb** | `/ssweb` - General social media tools | ✅ Active |
-| **Check-Host** | `/checkhost` - HTTP, Ping, DNS, TCP checks | ✅ Active |
-| **RunTheGauntlet** | `/runthegauntlet` - Shock video scraper | ✅ Active |
+*Currently updating...*
 
 ## 💡 Request a Scraper
 
