@@ -5,13 +5,14 @@
     "main": "index.js",
     "scripts": {
         "start": "node index.js",
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "test": "node test.js"
     },
     "dependencies": {
-        "axios": "^1.13.2",
-        "cheerio": "^1.1.2",
-        "cors": "^2.8.5",
-        "express": "^5.2.1"
+        "express": "^4.18.2",
+        "puppeteer": "^21.5.2",
+        "puppeteer-extra": "^3.3.6",
+        "puppeteer-extra-plugin-stealth": "^2.11.2",
+        "cors": "^2.8.5"
     },
     "author": "yemobyte",
     "license": "ISC"

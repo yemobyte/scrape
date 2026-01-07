@@ -2,7 +2,7 @@
 
 A Node.js scraper for X (formerly Twitter) that extracts tweet metadata and media without requiring login credentials, utilizing Puppeteer for guest access.
 
-## 🚀 Endpoints
+## Endpoints
 
 ### 1. Get Tweet Details
 Fetches content, statistics, and media from a specific Tweet URL.
@@ -35,7 +35,7 @@ Fetches content, statistics, and media from a specific Tweet URL.
   }
   ```
 
-## 🛠️ Installation & Usage
+## Installation & Usage
 
 1.  **Install Dependencies:**
     ```bash

@@ -36,7 +36,7 @@ router.get('/api/twitter', async (req, res) => {
             const contentType = res.headers()['content-type'];
             if (contentType && (contentType.includes('video/mp4') || contentType.includes('application/x-mpegURL') || contentType.includes('video/m2ts'))) {
                 if (!videoUrl && res.url().includes('video.twimg.com')) {
-                    videoUrl = res.url(); // Capture the first valid video URL
+                    videoUrl = res.url(); /* Capture the first valid video URL */
                 }
             }
         });
@@ -67,7 +67,7 @@ router.get('/api/twitter', async (req, res) => {
                 const el = document.querySelector(`[data-testid="${testId}"]`);
                 if (el) {
                     const label = el.getAttribute('aria-label');
-                    if (label) return label.split(' ')[0]; // Extract number from "100 likes"
+                    if (label) return label.split(' ')[0]; /* Extract number from "100 likes" */
                     return el.innerText.trim() || '0';
                 }
                 return '0';
@@ -110,7 +110,7 @@ router.get('/api/twitter', async (req, res) => {
             if (video) {
                 type = 'video';
                 if (video.src) media.push(video.src);
-                if (video.poster) media.push(video.poster); // Provide poster if src is blob
+                if (video.poster) media.push(video.poster); /* Provide poster if src is blob */
             }
 
             return {
