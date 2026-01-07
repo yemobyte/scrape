@@ -1,0 +1,19 @@
+{
+    "name": "yemobyte",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "test": "node test.js"
+    },
+    "dependencies": {
+        "express": "^4.18.2",
+        "puppeteer": "^21.5.2",
+        "puppeteer-extra": "^3.3.6",
+        "puppeteer-extra-plugin-stealth": "^2.11.2",
+        "cors": "^2.8.5"
+    },
+    "author": "yemobyte",
+    "license": "ISC"
+}

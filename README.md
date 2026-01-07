@@ -7,7 +7,8 @@ Maintained by **yemobyte**.
 
 | Platform | Endpoint/Description | Status |
 | :--- | :--- | :--- |
-| **Gamebrott** | `/gamebrott` - Gaming news & details | ✅ Active |
+| **Gamebrott** | `/api/berita` - News List<br>`/api/detail` - Article Content | ✅ Active |
+| **X / Twitter** | `/api/twitter` - Guest Scraper (Images/Videos/Stats) | ✅ Active |
 
 ## 💡 Request a Scraper
 
