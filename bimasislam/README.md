@@ -69,3 +69,23 @@ Fetches the Imsakiyah schedule for the whole Ramadan month of a specific year.
     }
   }
   ```
+
+## Examples
+
+**1. Custom City & Province**
+Format: `provinsi=[NAME]&kabkota=[NAME]`
+
+- **Bandung, Jawa Barat:**
+  `/api/jadwalshalat?provinsi=JAWA BARAT&kabkota=KOTA BANDUNG`
+- **Surabaya, Jawa Timur:**
+  `/api/jadwalshalat?provinsi=JAWA TIMUR&kabkota=KOTA SURABAYA`
+- **Aceh Barat, Aceh:**
+  `/api/jadwalshalat?provinsi=ACEH&kabkota=KAB. ACEH BARAT`
+
+**2. Custom Year (Imsakiyah)**
+Format: `tahun=[YEAR]`
+
+- **Jakarta (2026):**
+  `/api/jadwalimsakiyah?provinsi=DKI JAKARTA&kabkota=KOTA JAKARTA&tahun=2026`
+
+> **Note:** Province and City names are case-insensitive. Ensure names match those on the [Bimas Islam website](https://bimasislam.kemenag.go.id/jadwalshalat).
