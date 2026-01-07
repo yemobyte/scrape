@@ -5,7 +5,9 @@ Maintained by **yemobyte**.
 
 ## 🚀 Active Scrapers
 
-*Currently updating...*
+| Platform | Endpoint/Description | Status |
+| :--- | :--- | :--- |
+| **Gamebrott** | `/gamebrott` - Gaming news & details | ✅ Active |
 
 ## 💡 Request a Scraper
 
