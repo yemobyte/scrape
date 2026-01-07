@@ -7,10 +7,10 @@ Maintained by **yemobyte**.
 
 | Platform | Endpoint/Description | Status |
 | :--- | :--- | :--- |
-| **Gamebrott** | `/api/berita` - News List<br>`/api/detail` - Article Content | ✅ Active |
-| **X / Twitter** | `/api/twitter` - Guest Scraper (Images/Videos/Stats) | ✅ Active |
-| **Threads** | `/api/threads` - Post Scraper (Text/Media/Stats) | ✅ Active |
-| **Bimas Islam** | `/api/jadwalshalat`, `/api/jadwalimsakiyah` | ✅ Active |
+| **Gamebrott** | `/api/berita` - News List<br>`/api/detail` - Article Content | 🟢 Online |
+| **X / Twitter** | `/api/twitter` - Guest Scraper (Images/Videos/Stats) | 🟢 Online |
+| **Threads** | `/api/threads` - Post Scraper (Text/Media/Stats) | 🟢 Online |
+| **Bimas Islam** | `/api/jadwalshalat`, `/api/jadwalimsakiyah` | 🟢 Online |
 
 ## 💡 Request a Scraper
 
