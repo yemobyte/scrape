@@ -61,15 +61,3 @@ Fetches the full content of a specific article.
     ```
     The server will start on port `3000`.
 
-3.  **Test:**
-    You can use the provided test scripts:
-    ```bash
-    # Test news list
-    node test.js
-    
-    # Test article detail
-    node test_detail.js
-    ```
-
-## 👤 Credits
-Created by **yemobyte**.

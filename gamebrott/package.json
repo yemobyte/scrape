@@ -1,7 +1,7 @@
 {
-    "name": "gamebrott-scraper",
+    "name": "yemobyte",
     "version": "1.0.0",
-    "description": "Gamebrott news scraper",
+    "description": "",
     "main": "index.js",
     "scripts": {
         "start": "node index.js",
