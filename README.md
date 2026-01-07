@@ -1,7 +1,7 @@
 # Scrape API
 
 A professional collection of high-performance Node.js scrapers and APIs for various platforms.
-Maintained by **Yemobyte**.
+Maintained by **yemobyte**.
 
 ## 🚀 Active Scrapers
 
@@ -14,4 +14,4 @@ Have a specific site you want scraped?
 
 ## 📝 License
 This project is open-source and available under the standard license.
-Created with ❤️ by **Yemobyte**.
+Created with ❤️ by **yemobyte**.
