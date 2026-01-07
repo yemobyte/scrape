@@ -71,8 +71,8 @@ router.get('/api/detail', async (req, res) => {
         const $ = cheerio.load(data);
 
         /* Extract data */
-        /* Title - try multiple selectors */
-        const title = $('.jeg_post_title').text().trim() || $('h1').first().text().trim();
+        /* Title - try multiple selectors with strict cleaning */
+        const title = ($('.jeg_post_title').first().text() || $('h1').first().text()).replace(/\s+/g, ' ').trim();
 
         /* Content */
         /* Remove unwanted elements */
@@ -90,8 +90,8 @@ router.get('/api/detail', async (req, res) => {
         const image = imageElement.attr('data-src') || imageElement.attr('src') || $('.wp-post-image').attr('src');
 
         /* Meta */
-        const author = $('.jeg_author_name a').text().trim();
-        const date = $('.jeg_meta_date a').text().trim();
+        const author = $('.jeg_author_name a').first().text().replace(/\s+/g, ' ').trim();
+        const date = $('.jeg_meta_date a').first().text().replace(/\s+/g, ' ').trim();
 
         res.json({
             status: true,
