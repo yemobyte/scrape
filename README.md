@@ -10,6 +10,7 @@ Maintained by **yemobyte**.
 | **Gamebrott** | `/api/berita` - News List<br>`/api/detail` - Article Content | ✅ Active |
 | **X / Twitter** | `/api/twitter` - Guest Scraper (Images/Videos/Stats) | ✅ Active |
 | **Threads** | `/api/threads` - Post Scraper (Text/Media/Stats) | ✅ Active |
+| **Bimas Islam** | `/api/jadwalshalat`, `/api/jadwalimsakiyah` | ✅ Active |
 
 ## 💡 Request a Scraper
 
