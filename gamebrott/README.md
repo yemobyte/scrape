@@ -1,6 +1,8 @@
 # Gamebrott Scraper
 
+
 A Node.js scraper for Gamebrott.com to extract news lists and article details.
+
 
 ## Usage
 
