@@ -8,7 +8,7 @@ const router = express.Router();
 const BASE_URL = 'https://gamebrott.com/berita/';
 
 /* Main route handler */
-router.get(['/', '/api/berita'], async (req, res) => {
+router.get('/api/berita', async (req, res) => {
     try {
         /* Fetch the HTML content */
         const { data } = await axios.get(BASE_URL);
