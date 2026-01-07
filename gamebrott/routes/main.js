@@ -82,8 +82,8 @@ router.get('/api/detail', async (req, res) => {
 
         const contentElement = $('.content-inner').length ? $('.content-inner') : $('.jeg_post_content');
 
-        /* Get text content and clean up newlines for cleaner output */
-        const content = contentElement.text().replace(/\n+/g, ' ').trim();
+        /* Get text content and clean up newlines/excessive spaces for cleaner output */
+        const content = contentElement.text().replace(/\s+/g, ' ').trim();
 
         /* Image */
         const imageElement = $('.jeg_featured_img img').first();
