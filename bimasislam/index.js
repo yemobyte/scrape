@@ -7,6 +7,7 @@ const PORT = 3000;
 
 app.use(cors());
 app.use(express.json());
+app.set('json spaces', 2);
 
 /* Route utama */
 app.use('/', router);
